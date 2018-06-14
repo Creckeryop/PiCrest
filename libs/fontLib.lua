@@ -55,18 +55,18 @@ function FontLib_print(x, y, text, clr, fnt)
 		x = x + w + 1
 	end
 end
-function FontLib_printScaled(x, y, text, size, clr, fnt)
+function FontLib_printScaled(x, y, text, size_x, size_y, clr, fnt)
 	fnt = fnt or _FL_DEF
 	local w, h, s, f = FontLib[fnt].width, FontLib[fnt].height, FontLib[fnt].startY, FontLib[fnt].extrafunc
-	local wS = w * size
-	local Sx, Sy = wS / 2, h * size / 2
+	local wS = w * size_x
+	local Sx, Sy = wS / 2, h * size_y / 2
 	for i = 1, _FL_LEN(text) do
 		local l = _FL_SUB(text, i, i)
 		if f then l = f(l) end
 		if FontLib[fnt][l] ~= nil then
-			_FL_DIE(x + Sx, y + Sy, _FL_TEX, FontLib[fnt][l].x, s, w, h, 0, size, size, clr)
+			_FL_DIE(x + Sx, y + Sy, _FL_TEX, FontLib[fnt][l].x, s, w, h, 0, size_x, size_y, clr)
 		end
-		x = x + wS + size
+		x = x + wS + size_x
 	end
 end
 function FontLib_printRotated(x, y, text, rot, clr, fnt)
@@ -85,17 +85,17 @@ function FontLib_printRotated(x, y, text, rot, clr, fnt)
 		y = y + hS
 	end
 end
-function FontLib_printExtended(x, y, text, size, rot, clr, fnt)
+function FontLib_printExtended(x, y, text, size_x, size_y, rot, clr, fnt)
 	fnt = fnt or _FL_DEF
 	local w, h, s, f = FontLib[fnt].width, FontLib[fnt].height, FontLib[fnt].startY, FontLib[fnt].extrafunc
 	local sin, cos, len = _FL_SIN(rot), _FL_COS(rot), _FL_LEN(text)
-	local wS, hS = w * size * cos, w * size * sin
+	local wS, hS = w * size_x * cos, w * size_x * sin
 	local Sx, Sy = (len - 1) * wS / 2, (len - 1) * hS / 2
 	for i=1, len do
 		local l = _FL_SUB(text, i, i)
 		if f then l = f(l) end
 		if FontLib[fnt][l] ~= nil then
-			_FL_DIE(x - Sx, y - Sy, _FL_TEX, FontLib[fnt][l].x, s, w, h, rot, size, size, clr)
+			_FL_DIE(x - Sx, y - Sy, _FL_TEX, FontLib[fnt][l].x, s, w, h, rot, size_x, size_y, clr)
 		end
 		x = x + wS
 		y = y + hS

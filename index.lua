@@ -28,6 +28,13 @@ level = {
 local DeltaTimer, newTime = Timer.new(), 0
 local Controls_check = Controls.check
 local Color_new = Color.new
+local start_x, start_y, tile_size = 0, 0, 24
+local level_width, level_height = 0, 0
+local function update()
+	start_x = (960 - level.width*tile_size)/2
+	start_y = (544 - level.height*tile_size)/2
+	level_width, level_height = level.width*tile_size, level.height*tile_size
+end
 local function Controls_click(BUTTON)
 	return Controls_check(pad, BUTTON) and not Controls_check(oldpad, BUTTON)
 end
@@ -53,25 +60,26 @@ local function drawRect(x, y, w, h, c)
 	Graphics.fillRect(x, x + w, y, y + h, c)
 end
 local function drawLevel()
-	drawRect(0,0,24*level.width,24*level.height, Color_new(0, 0, 0))
-	local y = 0
+	drawRect(start_x-1,start_y-1,level_width+2,level_height+2, Color_new(0, 0, 0))
+	local y = start_y + 1
 	for i = 0, level.width - 1 do
-		local x = 0
+		local x = start_x + 1
 		for j = 0, level.height - 1 do
 			local now = 1 - level.map[i*level.width+j+1]
-			drawRect(x, y, 22, 22, Color_new(255*now, 255*now, 255*now))
-			x = x + 24
+			drawRect(x, y, tile_size - 2, tile_size - 2, Color_new(255*now, 255*now, 255*now))
+			x = x + tile_size
 		end
-		y = y + 24
+		y = y + tile_size
 	end
 end
 Scan_Palette(palette)
+update()
 while true do
 	dt = newTime / 8
 	Timer.reset(DeltaTimer)
 	pad = Controls.read()
 	Graphics.initBlend()
-	Screen.clear()
+	Screen.clear(Color_new(255,255,255))
 	drawLevel()
 	Graphics.termBlend()
 	if Controls_click(SCE_CTRL_SELECT) then
