@@ -11,21 +11,6 @@ for i = 1, #Libs do
 	dofile(libDir..Libs[i]..".lua")
 end
 local tile_tex = Graphics.loadImage(dataDir.."tile.png")
-level = {
-	name = "Pikachu",
-	width = 10,
-	height = 10,
-	map = {	true,false,false,true,false,false,false,false,false,true,
-			true,true,false,true,true,false,false,false,true,true,
-			false,true,true,false,true,true,true,true,true,false,
-			false,false,true,true,false,false,false,false,false,true,
-			false,false,true,false,false,false,false,false,false,false,
-			false,false,true,false,true,false,false,false,false,true,
-			false,true,false,true,true,false,false,false,true,true,
-			false,true,true,false,false,false,true,false,false,false,
-			false,true,true,false,false,true,true,true,false,false,
-			false,false,true,true,false,false,false,false,false,true}
-}
 local tile = {stackU = {}, stackL = {}}
 local DeltaTimer, newTime = Timer.new(), 0
 local Controls_check = Controls.check
@@ -34,7 +19,7 @@ local start_x, start_y, tile_size = 0, 0, 24
 local square_size, square_start_x, square_start_y = tile_size - 2, start_x + 1,start_y + 1
 local level_width, level_height = 0, 0
 local frame_x, frame_y, x5lines, y5lines, priceXY5, frame_size = 0, 0, 0, 0, 0, tile_size + 2
-local ceil, max, len = math.ceil, math.max, string.len
+local ceil, max, len, floor = math.ceil, math.max, string.len, math.floor
 local actionTimer = Timer.new()
 local dontPress = false
 local lock_time, pause, def_pause, lil_pause = 1000, 300, 300, 90
@@ -172,11 +157,13 @@ local function drawLevel()
 	end
 	local y = square_start_y
 	local tmp = 0
-	for i = 1, level.height do
+	for i = 0, level.height-1 do
 		local x = square_start_x
-		for j = 1, level.width do
+		if floor(i/2)==i/2 then	drawRect(0,y-1,x-2,tile_size,Color.new(200,200,200)) end
+		for j = 0, level.width-1 do
+			if floor(j/2)==j/2 and i == 0 then drawRect(x-1,0,tile_size,y-2,Color.new(200,200,200)) end
 			tmp = tmp + 1
-			Graphics.drawImage(x, y, tile_tex, level.pmap[tmp])
+			drawRect(x - 1, y - 1, tile_size, tile_size, level.pmap[tmp])
 			
 			--[[
 			if level.empty[tmp] then
@@ -204,11 +191,13 @@ local function drawNumbers() --Draw side numbers
 			if a and j<=#tile.stackU[i] then
 				yU = yU - tile_size
 				local textU = tile.stackU[i][j]
+				--FontLib_print(xU - len(textU) * 4,yU,textU,Color_new(255,255,255),2)
 				FontLib_printWShadow(xU - len(textU) * 4, - 2, yU, 2, textU, Color_new(255, 255, 255), Color_new(0, 0, 0), 2)
 			end
 			if b and j<=#tile.stackL[i] then
 				xL = xL - tile_size
 				local textL = tile.stackL[i][j]
+				--FontLib_print(xL - len(textL) * 4,yL,textL,Color_new(255,255,255),2)
 				FontLib_printWShadow(xL - len(textL) * 4, - 2, yL, 2, textL, Color_new(255, 255, 255), Color_new(0, 0, 0), 2)
 			end
 		end
@@ -265,6 +254,20 @@ local function Controls_frame() --Frame manipulations
 		end
 	end
 end
+local function touchScreen()
+	Touch_x,Touch_y,Touch_c,Touch_z = Controls.readTouch()
+	if Touch_x~=nil then
+		oldTouch_x = oldTouch_x or start_x - Touch_x
+		oldTouch_y = oldTouch_y or start_y - Touch_y
+		start_x = oldTouch_x + Touch_x
+		start_y = oldTouch_y + Touch_y
+		square_start_x = start_x + 1
+		square_start_y = start_y + 1
+	else
+		oldTouch_x = nil
+		oldTouch_y = nil
+	end
+end
 Update() --Updating variables for new level
 while true do
 	dt = newTime / 8
@@ -274,12 +277,14 @@ while true do
 	Screen.clear(Color_new(180,180,180))
 	drawLevel()
 	drawNumbers()
-	Controls_frame()
 	Graphics.termBlend()
+	Controls_frame()
+	touchScreen()
 	if Controls_click(SCE_CTRL_SELECT) then
 		FontLib_close()
 		FTP = FTP + 1
 	end
+	Screen.waitVblankStart()
 	Screen.flip()
 	oldpad = pad
 	newTime = Timer.getTime(DeltaTimer)
