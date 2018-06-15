@@ -101,6 +101,10 @@ function FontLib_printExtended(x, y, text, size_x, size_y, rot, clr, fnt)
 		y = y + hS
 	end
 end
+function FontLib_printWShadow(x, sx, y, sy, text, c, sc, fnt)
+	FontLib_print(x + sx, y + sy, text, sc, fnt)
+	FontLib_print(x, y, text, c, fnt)
+end
 function FontLib_close()
 	Graphics.freeImage(_FL_TEX)
 end
