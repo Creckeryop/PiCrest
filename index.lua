@@ -10,9 +10,7 @@ clevelDir = dir.."clevels/" --Dir for custom levels
 for i = 1, #Libs do 
 	dofile(libDir..Libs[i]..".lua")
 end
-local palette = Graphics.loadImage(dataDir.."palette.png")
 local tile_tex = Graphics.loadImage(dataDir.."tile.png")
-local paletteTable = {}
 level = {
 	name = "Pikachu",
 	width = 10,
@@ -40,6 +38,10 @@ local ceil, max, len = math.ceil, math.max, string.len
 local actionTimer = Timer.new()
 local dontPress = false
 local lock_time, pause, def_pause, lil_pause = 1000, 300, 300, 90
+local function hex2rgb(hex)
+    hex = hex:gsub("#","")
+    return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
+end
 local function extractPCL(path)
 	local lvl = {[1] = ""}
 	pcl = System.openFile(path, FREAD)
@@ -72,8 +74,8 @@ local function extractPCL(path)
 			else
 			lvl.map[y+x] = false
 			end
-			lvl.pmap[y+x] = tonumber(string.sub(lvl[now], tmp+1, tmp+3))
-			tmp = tmp + 4
+			lvl.pmap[y+x] = Color_new(hex2rgb(string.sub(lvl[now], tmp+1, tmp+6)))
+			tmp = tmp + 7
 			x = x + 1
 		end
 		y = y + lvl.width
@@ -150,25 +152,6 @@ end
 local function Controls_click(BUTTON)
 	return Controls_check(pad, BUTTON) and not Controls_check(oldpad, BUTTON)
 end
-local function Scan_Palette(pal_tex)
-	for i = 1, 2 do
-		Graphics.initBlend()
-		Screen.clear()
-		Graphics.drawImage(0,0,pal_tex)
-		if i == 2 then
-			local tmp = 0
-			for i = 0, Graphics.getImageHeight(pal_tex)-1 do
-				for j = 0, Graphics.getImageWidth(pal_tex)-1 do
-					tmp = tmp + 1
-					paletteTable[tmp] = Screen.getPixel(j, i)
-				end
-			end
-		end
-		Graphics.termBlend()
-		Screen.waitVblankStart()
-		Screen.flip()
-	end
-end
 local function drawRect(x, y, w, h, c)
 	Graphics.fillRect(x, x + w, y, y + h, c)
 end
@@ -193,11 +176,14 @@ local function drawLevel()
 		local x = square_start_x
 		for j = 1, level.width do
 			tmp = tmp + 1
+			Graphics.drawImage(x, y, tile_tex, level.pmap[tmp])
+			
+			--[[
 			if level.empty[tmp] then
 				Graphics.drawImage(x, y, tile_tex, Color_new(0, 148, 255))
 				else
 				drawRect(x, y, square_size, square_size, Color_new(255, 255, 255))	
-			end
+			end]]
 			x = x + tile_size
 		end
 		y = y + tile_size
@@ -279,7 +265,6 @@ local function Controls_frame() --Frame manipulations
 		end
 	end
 end
-Scan_Palette(palette)
 Update() --Updating variables for new level
 while true do
 	dt = newTime / 8
