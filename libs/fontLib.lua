@@ -24,7 +24,7 @@ FontLib = {
 		name = "IdntKnow",
 		extrafunc = function (l) return _FL_SUP(l) end,
 		width = 9,
-		height = 13,
+		height = 14,
 		startY = 14,
 		letters = {
 			"0","1","2","3","4","5","6","7","8","9",

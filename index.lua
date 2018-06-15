@@ -26,6 +26,7 @@ level = {
 		false,true,true,false,false,true,true,true,false,false,
 	false,false,true,true,false,false,false,false,false,true}
 }
+local tile = {stackU = {}, stackL = {}}
 local DeltaTimer, newTime = Timer.new(), 0
 local Controls_check = Controls.check
 local Color_new = Color.new
@@ -33,10 +34,46 @@ local start_x, start_y, tile_size = 0, 0, 24
 local square_size, square_start_x, square_start_y = tile_size - 2, start_x + 1,start_y + 1
 local level_width, level_height = 0, 0
 local frame_x, frame_y, x5lines, y5lines, priceXY5, frame_size = 0, 0, 0, 0, 0, tile_size + 2
-local ceil = math.ceil
+local ceil, max, len = math.ceil, math.max, string.len
 local actionTimer = Timer.new()
 local dontPress = false
 local lock_time, pause, def_pause, lil_pause = 1000, 300, 300, 90
+function updateStacks()
+	for i = 0, math.max(level.width,level.height) - 1 do
+		if i < level.width then			tile.stackU[i] = {[0]=0}		end
+		if i < level.height then		tile.stackL[i] = {[0]=0}		end
+	end
+	for i=0, level.width-1 do
+		local now = 0
+		for j=0, level.height-1 do
+			if level.map[j*level.width+i+1] then
+				tile.stackU[i][now] = tile.stackU[i][now] + 1
+			else
+				if tile.stackU[i][now]~=nil and tile.stackU[i][now]>0 then
+					now = now + 1
+					tile.stackU[i][now] = 0
+				end
+			end
+		end
+		if tile.stackU[i][now]==0 and tile.stackU[i][0]~=0 then tile.stackU[i][now]=nil end
+	end
+	local tmp = 0
+	for i=0, level.height-1 do
+		local now = 0
+		for j=0, level.width-1 do
+			tmp = tmp + 1
+			if level.map[tmp] then
+				tile.stackL[i][now] = tile.stackL[i][now] + 1
+			else
+				if tile.stackL[i][now]~=nil and tile.stackL[i][now]>0 then
+					now = now + 1
+					tile.stackL[i][now] = 0
+				end
+			end
+		end
+		if tile.stackL[i][now]==0 and tile.stackL[i][0]~=0 then tile.stackL[i][now]=nil end
+	end
+end
 local function Update()
 	start_x = (960 - level.width * tile_size)/2
 	start_y = (544 - level.height * tile_size)/2
@@ -56,6 +93,7 @@ local function Update()
 	priceXY5 = 5 * tile_size
 	x5lines = (ceil(level.width/5) - 1) * priceXY5
 	y5lines = (ceil(level.height/5) - 1) * priceXY5
+	updateStacks()
 end
 local function Controls_click(BUTTON)
 	return Controls_check(pad, BUTTON) and not Controls_check(oldpad, BUTTON)
@@ -111,7 +149,32 @@ local function drawLevel()
 		end
 		y = y + tile_size
 	end
-	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 4, Color_new(255, 0, 0))
+	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 4, Color_new(200, 0, 200))
+end
+local function drawNumbers()
+	local halhSize = tile_size/2
+	local xU = start_x
+	local yL = start_y
+	for i=0, max(level.width,level.height) do
+		local yU = start_y-2
+		local xL = start_x-2
+		for j = max(level.width,level.height), 0, -1 do
+			if i<=#tile.stackU and j<=#tile.stackU[i] then
+				yU = yU - tile_size
+				local textU = tile.stackU[i][j]
+				FontLib_print(xU+halhSize-len(textU)*5-2,yU+halhSize-7+2,textU,Color_new(0, 0, 0),2)
+				FontLib_print(xU+halhSize-len(textU)*5,yU+halhSize-7,textU,Color_new(255, 255, 255),2)
+			end
+			if i<=#tile.stackL and j<=#tile.stackL[i] then
+				xL = xL - tile_size
+				local textL = tile.stackL[i][j]
+				FontLib_print(xL+halhSize-len(textL)*5-2,yL+halhSize-7+2,textL,Color_new(0, 0, 0),2)
+				FontLib_print(xL+halhSize-len(textL)*5	,yL+halhSize-7,textL,Color_new(255, 255, 255),2)
+			end
+		end
+		xU = xU + tile_size
+		yL = yL + tile_size
+	end
 end
 local function Controls_frame()
 	local time = Timer.getTime(actionTimer)
@@ -160,6 +223,7 @@ while true do
 	Graphics.initBlend()
 	Screen.clear(Color_new(180,180,180))
 	drawLevel()
+	drawNumbers()
 	Controls_frame()
 	Graphics.termBlend()
 	if Controls_click(SCE_CTRL_SELECT) then
