@@ -55,6 +55,23 @@ function FontLib_print(x, y, text, clr, fnt)
 		x = x + w + 1
 	end
 end
+function FontLib_printT(x, y, text, clr, fnt)
+	fnt = fnt or _FL_DEF
+	local w, h, s, f = FontLib[fnt].width, FontLib[fnt].height, FontLib[fnt].startY, FontLib[fnt].extrafunc
+	local s_x = x
+	for j = 1, #text do
+		x = s_x
+		for i = 1, _FL_LEN(text[j]) do
+			local l = _FL_SUB(text[j], i, i)
+			if f then l = f(l) end
+			if FontLib[fnt][l] ~= nil then
+				_FL_DPI(x, y,_FL_TEX,FontLib[fnt][l].x, s, w, h, clr)
+			end
+			x = x + w + 1
+		end
+		y = y + h
+	end
+end
 function FontLib_printScaled(x, y, text, size_x, size_y, clr, fnt)
 	fnt = fnt or _FL_DEF
 	local w, h, s, f = FontLib[fnt].width, FontLib[fnt].height, FontLib[fnt].startY, FontLib[fnt].extrafunc

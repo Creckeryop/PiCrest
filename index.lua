@@ -40,18 +40,62 @@ local ceil, max, len = math.ceil, math.max, string.len
 local actionTimer = Timer.new()
 local dontPress = false
 local lock_time, pause, def_pause, lil_pause = 1000, 300, 300, 90
-function updateStacks() --Creating side numbers
+local function extractPCL(path)
+	local lvl = {[1] = ""}
+	pcl = System.openFile(path, FREAD)
+	pcl_size = System.sizeFile(pcl)
+	local now = 1
+	for i = 1, pcl_size do
+		local str = System.readFile(pcl,1)
+		if string.byte(str) ~= 13 and string.byte(str)~=10 then
+			lvl[now] = lvl[now]..str
+			elseif string.byte(str) == 10 then
+			now = now + 1
+			lvl[now] = ""
+		end
+	end
+	if lvl[1]=="" then lvl.record = nil else lvl.record = tonumber(lvl[1]) end
+	lvl.name = lvl[2]
+	lvl.width = tonumber(lvl[3])
+	lvl.height = tonumber(lvl[4])
+	lvl.map = {}
+	lvl.pmap = {}
+	local now = 5
+	local y = 0
+	for i = 1, lvl.height do
+		local x = 1
+		local tmp = 1
+		for j = 1, lvl.width do
+			l = tonumber(string.sub(lvl[now], tmp, tmp))
+			if l == 1 then
+			lvl.map[y+x] = true
+			else
+			lvl.map[y+x] = false
+			end
+			lvl.pmap[y+x] = tonumber(string.sub(lvl[now], tmp+1, tmp+3))
+			tmp = tmp + 4
+			x = x + 1
+		end
+		y = y + lvl.width
+		now = now + 1
+	end
+	for i = 1, #lvl do
+		table.remove(lvl, 1)
+	end
+	System.closeFile(pcl)
+	return lvl
+end
+level = extractPCL(levelDir.."level.pcl")
+local function updateStacks() --Creating side numbers
 	for i = 0, max(level.width,level.height) - 1 do
 		if i < level.width then		tile.stackU[i] = {[0]=0}	end
 		if i < level.height then	tile.stackL[i] = {[0]=0}	end
 	end
 	do --Creating Upper side numbers
-		for i=0, level.width-1 do
+		for i = 0, level.width-1 do
 			local now = 0
-			local tmp = i + 1
 			for j=0, level.height-1 do
-				tmp = tmp + level.width
-				if level.map[tmp] then
+				if level.map[j*level.width+i+1] then
 					tile.stackU[i][now] = tile.stackU[i][now] + 1
 				else
 					if tile.stackU[i][now] and tile.stackU[i][now] > 0 then
@@ -112,10 +156,11 @@ local function Scan_Palette(pal_tex)
 		Screen.clear()
 		Graphics.drawImage(0,0,pal_tex)
 		if i == 2 then
-			for i = 0, Graphics.getImageWidth(pal_tex) do
-				paletteTable[i] = {}
-				for j = 0, Graphics.getImageHeight(pal_tex) do
-					paletteTable[i][j] = Screen.getPixel(i,j)
+			local tmp = 0
+			for i = 0, Graphics.getImageHeight(pal_tex)-1 do
+				for j = 0, Graphics.getImageWidth(pal_tex)-1 do
+					tmp = tmp + 1
+					paletteTable[tmp] = Screen.getPixel(j, i)
 				end
 			end
 		end
@@ -144,9 +189,9 @@ local function drawLevel()
 	end
 	local y = square_start_y
 	local tmp = 0
-	for i = 0, level.width - 1 do
+	for i = 1, level.height do
 		local x = square_start_x
-		for j = 0, level.height - 1 do
+		for j = 1, level.width do
 			tmp = tmp + 1
 			if level.empty[tmp] then
 				Graphics.drawImage(x, y, tile_tex, Color_new(0, 148, 255))
