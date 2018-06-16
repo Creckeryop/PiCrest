@@ -11,6 +11,7 @@ for i = 1, #Libs do
 	dofile(libDir..Libs[i]..".lua")
 end
 local tile_tex = Graphics.loadImage(dataDir.."tile.png")
+local cross_tex = Graphics.loadImage(dataDir.."cross.png")
 local tile = {stackU = {}, stackL = {}}
 local DeltaTimer, newTime = Timer.new(), 0
 local Controls_check = Controls.check
@@ -22,7 +23,8 @@ local frame_x, frame_y, x5lines, y5lines, priceXY5, frame_size = 0, 0, 0, 0, 0, 
 local ceil, max, len, floor = math.ceil, math.max, string.len, math.floor
 local actionTimer = Timer.new()
 local dontPress = false
-local lock_time, pause, def_pause, lil_pause = 1000, 300, 300, 90
+local lock_time, pause, def_pause, lil_pause = 1000, 300, 300, 60
+local oldpad = SCE_CTRL_CROSS
 local function hex2rgb(hex)
     hex = hex:gsub("#","")
     return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
@@ -122,11 +124,16 @@ local function Update() --Updating variables for new level
 	frame_x = 0
 	frame_y = 0
 	level.empty = {}
+	level.nowBlocks = 0
+	level.allBlocks = 0
 	local tmp = 0
 	for i = 0, level.height - 1 do
 		for j = 0, level.width - 1 do
 			tmp = tmp + 1
-			level.empty[tmp] = false
+			level.empty[tmp] = 0
+			if level.map[tmp] then
+				level.allBlocks = level.allBlocks + 1
+			end
 		end
 	end
 	priceXY5 = 5 * tile_size
@@ -159,18 +166,16 @@ local function drawLevel()
 	local tmp = 0
 	for i = 0, level.height-1 do
 		local x = square_start_x
-		if floor(i/2)==i/2 then	drawRect(0,y-1,x-2,tile_size,Color.new(200,200,200)) end
+		if floor(i/2)==i/2 then	drawRect(0,y - 1,x - 2,tile_size,Color.new(255,255,255,60)) end
 		for j = 0, level.width-1 do
-			if floor(j/2)==j/2 and i == 0 then drawRect(x-1,0,tile_size,y-2,Color.new(200,200,200)) end
+			if floor(j/2)==j/2 and i == 0 then drawRect(x-1,0,tile_size,y-2,Color.new(255,255,255,60)) end
 			tmp = tmp + 1
-			drawRect(x - 1, y - 1, tile_size, tile_size, level.pmap[tmp])
-			
-			--[[
-			if level.empty[tmp] then
-				Graphics.drawImage(x, y, tile_tex, Color_new(0, 148, 255))
-				else
 				drawRect(x, y, square_size, square_size, Color_new(255, 255, 255))	
-			end]]
+			if level.empty[tmp]==1 then
+				Graphics.drawImage(x, y, tile_tex, Color_new(0, 148, 255))
+				elseif level.empty[tmp] == -1 then
+				Graphics.drawImage(x, y, cross_tex, Color_new(0, 148, 255))
+			end
 			x = x + tile_size
 		end
 		y = y + tile_size
@@ -209,6 +214,35 @@ local function Controls_frame() --Frame manipulations
 	local time = Timer.getTime(actionTimer)
 	if pause ~= lock_time then
 		if not dontPress then
+			if (Controls.check(pad, SCE_CTRL_CROSS) or Controls.check(oldpad, SCE_CTRL_CIRCLE)) and tile_storeNum == nil then
+				tile_storeNum = level.empty[frame_y*level.width+frame_x+1]
+			end
+			if (Controls.check(pad, SCE_CTRL_CROSS) or Controls.check(oldpad, SCE_CTRL_CIRCLE)) and tile_storeNum ~= nil then
+				local tmp = level.empty[frame_y*level.width+frame_x+1]
+				if (tmp==-1 or tmp==1) and (tile_storeNum==-1 or tile_storeNum==1) then
+					if tmp == 1 then
+						level.nowBlocks = level.nowBlocks - 1	
+					end
+					level.empty[frame_y*level.width+frame_x+1] = 0
+				end
+				if Controls.check(pad, SCE_CTRL_CROSS) then
+					if tile_storeNum==0 and tmp==0 then
+						if level.map[frame_y*level.width+frame_x+1] then
+							level.empty[frame_y*level.width+frame_x+1] = 1
+							level.nowBlocks = level.nowBlocks + 1
+							else
+							level.empty[frame_y*level.width+frame_x+1] = -1
+						end
+					end
+				end
+				if Controls.check(pad, SCE_CTRL_CIRCLE) then
+					if tile_storeNum==0 and level.empty[frame_y*level.width+frame_x+1]==0 then
+						level.empty[frame_y*level.width+frame_x+1] = -1
+					end
+				end
+				else
+				tile_storeNum = nil
+			end
 			local pressed = false
 			if Controls_check(pad, SCE_CTRL_UP) or Controls_check(pad, SCE_CTRL_DOWN) or Controls_check(pad, SCE_CTRL_LEFT) or Controls_check(pad, SCE_CTRL_RIGHT) then
 				pressed = true
@@ -246,6 +280,8 @@ local function Controls_frame() --Frame manipulations
 			if not pressed then 
 				pause = def_pause 
 			end
+			elseif not (Controls.check(pad, SCE_CTRL_CROSS) or Controls.check(oldpad, SCE_CTRL_CIRCLE)) then
+			dontPress = false
 		end
 		else
 		if pause < time then
