@@ -31,6 +31,16 @@ FontLib = {
 			"A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z",
 			" ",".","!","?","-","+","(",")","%","$","#","|","~",":"
 		}
+},
+[3] = {
+		name = "IdntKnow",
+		extrafunc = function (l) return _FL_SUP(l) end,
+		width = 10,
+		height = 15,
+		startY = 27,
+		letters = {
+			"0","1","2","3","4","5","6","7","8","9"
+		}
 }
 }
 function FontLib_setLetter(fnt, _x, l)
@@ -52,7 +62,7 @@ function FontLib_print(x, y, text, clr, fnt)
 		if FontLib[fnt][l] ~= nil then
 			_FL_DPI(x, y,_FL_TEX,FontLib[fnt][l].x, s, w, h, clr)
 		end
-		x = x + w + 1
+		x = x + w
 	end
 end
 function FontLib_printT(x, y, text, clr, fnt)
@@ -67,7 +77,7 @@ function FontLib_printT(x, y, text, clr, fnt)
 			if FontLib[fnt][l] ~= nil then
 				_FL_DPI(x, y,_FL_TEX,FontLib[fnt][l].x, s, w, h, clr)
 			end
-			x = x + w + 1
+			x = x + w
 		end
 		y = y + h
 	end
@@ -83,7 +93,7 @@ function FontLib_printScaled(x, y, text, size_x, size_y, clr, fnt)
 		if FontLib[fnt][l] ~= nil then
 			_FL_DIE(x + Sx, y + Sy, _FL_TEX, FontLib[fnt][l].x, s, w, h, 0, size_x, size_y, clr)
 		end
-		x = x + wS + size_x
+		x = x + wS
 	end
 end
 function FontLib_printRotated(x, y, text, rot, clr, fnt)
