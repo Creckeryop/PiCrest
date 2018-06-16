@@ -25,11 +25,29 @@ local actionTimer = Timer.new()
 local dontPress = false
 local lock_time, pause, def_pause, lil_pause = 1000, 300, 300, 60
 local oldpad = SCE_CTRL_CROSS
-local function hex2rgb(hex)
+local function rgb2hex(rgb) --RGB -> HEX
+	local hexadecimal = ""
+	for i = 1, #rgb do
+		local hex = ''
+		while (rgb[i] > 0) do
+			local index = math.fmod(rgb[i], 16) + 1
+			rgb[i] = math.floor(rgb[i] / 16)
+			hex = string.sub('0123456789ABCDEF', index, index) .. hex			
+		end
+		if(string.len(hex) == 0)then
+			hex = '00'
+		elseif(string.len(hex) == 1)then
+			hex = '0' .. hex
+		end
+		hexadecimal = hexadecimal .. hex
+	end
+	return hexadecimal
+end
+local function hex2rgb(hex) --HEX -> RGB
     hex = hex:gsub("#","")
     return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
 end
-local function extractPCL(path)
+local function openPCL(path) --Takes table from PCL file
 	local lvl = {[1] = ""}
 	pcl = System.openFile(path, FREAD)
 	pcl_size = System.sizeFile(pcl)
@@ -74,7 +92,88 @@ local function extractPCL(path)
 	System.closeFile(pcl)
 	return lvl
 end
-level = extractPCL(levelDir.."level.pcl")
+local function getRecordAndNamePCL(path) --Gets Record time and name from PCL file
+	local time, name = "", ""
+	pcl = System.openFile(path, FREAD)
+	pcl_size = System.sizeFile(pcl)
+	local now = 1
+	for i = 1, pcl_size do
+		local str = System.readFile(pcl,1)
+		if string.byte(str) ~= 13 and string.byte(str)~=10 then
+			if now == 1 then
+			time = time..str
+			elseif now == 2 then
+			name = name..str
+			end
+			elseif string.byte(str) == 10 then
+			if now == 2 then
+			break
+			else
+			now = now + 1
+			end
+		end
+	end
+	System.closeFile(pcl)
+	time = tonumber(time)
+	return time, name
+end
+local function createPCL(path, level, check) --Create new or Rewrite old PCL file
+	local str = {tostring(level.record).."\n", tostring(level.name).."\n", tostring(level.width).."\n", tostring(level.height).."\n", map = {}}
+	if check and System.doesFileExist(path) then
+		return false
+		elseif check then
+		return true
+	end
+	if System.doesFileExist(path) then
+		System.deleteFile(path)
+	end
+	pcl = System.openFile(path, FCREATE)
+	for i = 1, #str do
+		System.writeFile(pcl, str[i], len(str[i]))
+	end
+	for i=1, #level.map do
+		local getHex = rgb2hex({Color.getR(level.pmap[i]),Color.getG(level.pmap[i]), Color.getB(level.pmap[i])})
+		if level.map[i] then
+			str.map[i] = "1"..getHex
+			else
+			str.map[i] = "0"..getHex
+		end
+	end
+	local x = 0
+	for i=1, level.height do
+		for j=1, level.width do
+			x = x + 1
+			System.writeFile(pcl, str.map[x], len(str.map[x]))
+		end
+		System.writeFile(pcl, '\n', 1)
+	end
+	System.closeFile(pcl)
+end
+local function updatePCL(path, record) --Update PCL recordTime
+	local lvl = {[1] = ""}
+	local record = tostring(record).."\n"
+	pcl = System.openFile(path, FREAD)
+	local now = 1
+	for i = 1, pcl_size do
+		local str = System.readFile(pcl,1)
+		if string.byte(str) ~= 13 and string.byte(str)~=10 then
+			lvl[now] = lvl[now]..str
+			elseif string.byte(str) == 10 then
+			lvl[now] = lvl[now].."\n"
+			now = now + 1
+			lvl[now] = ""
+		end
+	end
+	System.closeFile(pcl)
+	System.deleteFile(path)
+	pcl = System.openFile(path, FCREATE)
+	System.writeFile(pcl, record, len(record))
+	for i = 2, now do
+		System.writeFile(pcl, lvl[i], len(lvl[i]))
+	end
+	System.closeFile(pcl)
+end
+level = openPCL(levelDir.."level.pcl")
 local function updateStacks() --Creating side numbers
 	for i = 0, max(level.width,level.height) - 1 do
 		if i < level.width then		tile.stackU[i] = {[0]=0}	end
