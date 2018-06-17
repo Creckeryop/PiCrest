@@ -11,6 +11,8 @@ clevelDir = dir.."clevels/" --Dir for custom levels
 for i = 1, #Libs do 
 	dofile(libDir..Libs[i]..".lua")
 end
+local hex2rgb = hex2rgb
+local rgb2hex = rgb2hex
 local openPCL, updatePCL, createPCL, getRNPCL = PCL_Lib.open, PCL_Lib.update, PCL_Lib.create, PCL_Lib.getRN
 local tile_tex = Graphics.loadImage(dataDir.."tile.png")
 local cross_tex = Graphics.loadImage(dataDir.."cross.png")
@@ -22,12 +24,36 @@ local start_x, start_y, tile_size = 0, 0, 24
 local half_size, square_size, square_start_x, square_start_y = tile_size / 2, tile_size - 2, start_x + 1,start_y + 1
 local level_width, level_height = 0, 0
 local frame_x, frame_y, x5lines, y5lines, priceXY5, frame_size = 0, 0, 0, 0, 0, tile_size + 2
-local ceil, max, len, floor = math.ceil, math.max, string.len, math.floor
+local ceil, max, len, floor, sub = math.ceil, math.max, string.len, math.floor, string.sub
 local dontPress = false
 local lock_time, def_pause, lil_pause = 1000, 200, 60
 local pause = def_pause
 local oldpad, newpad = SCE_CTRL_CROSS, SCE_CTRL_CROSS
+local OptionsNow, OptionsCLRNow, OptionsNowKey = 1, 0, 0
 level = openPCL(levelDir.."level2.pcl")
+local function tlen(t)
+	local a = 0
+		for k, v in pairs(t) do
+			a = a + 1
+		end
+	return a
+end
+local Colors = {
+	Tile = Color_new(255, 255, 255),
+	Cross = Color_new(0, 148, 255),
+	Square = Color_new(0, 148, 255),
+	Background = Color_new(160, 0, 28),
+	SecondBack = Color_new(200, 0, 64),
+	X5Lines = Color_new(200,0,0),
+	Grid = Color_new(0,0,0),
+	Frame = Color_new(200, 0, 200)
+}
+local OptionsColorsNext = {
+	["0"] = "1", ["1"] = "2", ["2"] = "3", ["3"] = "4", ["4"] = "5", ["5"] = "6", ["6"] = "7", ["7"] = "8", ["8"] = "9", ["9"] = "A", ["A"] = "B", ["B"] = "C", ["C"] = "D", ["D"] = "E", ["E"] = "F", ["F"] = "0"
+}
+local OptionsColorsPrev = {
+	["0"] = "F", ["1"] = "0", ["2"] = "1", ["3"] = "2", ["4"] = "3", ["5"] = "4", ["6"] = "5", ["7"] = "6", ["8"] = "7", ["9"] = "8", ["A"] = "9", ["B"] = "A", ["C"] = "B", ["D"] = "C", ["E"] = "D", ["F"] = "E"
+}
 local function updateStacks() --Creating side numbers
 	for i = 0, max(level.width,level.height) - 1 do
 		if i < level.width then		tile.stackU[i] = {[0]=0}	end
@@ -113,14 +139,14 @@ local function drawEmptyRect(x, y, w, h, t, c)
 	drawRect(x + t, y + h - t, w - 2 * t, t, c)
 end
 local function drawLevel() 
-	drawRect(start_x - 1, start_y - 1, level_width + 2, level_height + 2, Color_new(0, 0, 0))
+	drawRect(start_x - 1, start_y - 1, level_width + 2, level_height + 2, Colors.Grid)
 	local xLine = 0
 	for i = priceXY5 - 1, max(x5lines, y5lines), priceXY5 do
 		if i<=x5lines then
-		drawRect(start_x + i, start_y, 3, level_height, Color_new(200,0,0))
+		drawRect(start_x + i, start_y, 3, level_height, Colors.X5Lines)
 		end
 		if i<=y5lines then
-		drawRect(start_x, start_y + i, level_width, 3, Color_new(200,0,0))
+		drawRect(start_x, start_y + i, level_width, 3, Colors.X5Lines)
 		end
 	end
 	local y = square_start_y
@@ -128,26 +154,26 @@ local function drawLevel()
 	for i = 0, level.height-1 do
 		local x = square_start_x
 		local i_len = i / 2
-		if floor(i_len) == i_len then	drawRect(0, y - 1, x - 2, tile_size, Color_new(255, 255, 255, 60)) end
+		if floor(i_len) == i_len then	drawRect(0, y - 1, x - 2, tile_size, Colors.SecondBack) end
 		for j = 0, level.width - 1 do
 			if i == 0 then
 				local j_tmp = j /2
-				if floor(j_tmp) == j_tmp then drawRect(x - 1, 0, tile_size, y - 2, Color_new(255, 255, 255, 60)) end
+				if floor(j_tmp) == j_tmp then drawRect(x - 1, 0, tile_size, y - 2, Colors.SecondBack) end
 			end
 			tmp = tmp + 1
 			local tmp1,tmp2,tmp3 = level.empty[tmp],level.square[tmp],level.cross[tmp]
 			if tmp2~=1 then
-				drawRect(x,y,square_size,square_size,Color_new(255, 255, 255))
+				drawRect(x,y,square_size,square_size,	Colors.Tile)
 			end
 			if tmp3>0 and tmp3<1 then
-				Graphics.drawImageExtended(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,0,tmp3,tmp3,Color_new(0, 148, 255))
+				Graphics.drawImageExtended(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,0,tmp3,tmp3,Colors.Cross)
 			elseif tmp3>0 then
-				Graphics.drawImage(x, y, cross_tex,Color_new(0, 148, 255))
+				Graphics.drawImage(x, y, cross_tex,Colors.Cross)
 			end
 			if tmp2>0 and tmp2<1 then
-				Graphics.drawImageExtended(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,0,tmp2,tmp2,Color_new(0, 148, 255))
+				Graphics.drawImageExtended(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,0,tmp2,tmp2,Colors.Square)
 			elseif tmp2>0 then
-				Graphics.drawImage(x, y, tile_tex,Color_new(0, 148, 255))
+				Graphics.drawImage(x, y, tile_tex,Colors.Square)
 			end
 			x = x + tile_size
 			local add = dt*0.05
@@ -162,7 +188,7 @@ local function drawLevel()
 		end
 		y = y + tile_size
 	end
-	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 4, Color_new(200, 0, 200))
+	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 4, Colors.Frame)
 end
 local function drawNumbers() --Draw side numbers
 	local xU, yL = start_x + half_size, start_y + half_size - 7
@@ -291,18 +317,115 @@ local function touchScreen()
 		oldTouch_y = nil
 	end
 end
+local function drawOptionsLevel()
+	local start_x = (640)/2-5*tile_size + 1
+	local start_y = 544/2-5*tile_size
+	local level_width = tile_size*10+2
+	local level_height = tile_size*10+2
+	drawRect(start_x - 2, start_y - 1, level_width, level_height, Colors.Grid)
+	local priceXY5 = 5*tile_size
+	for i = priceXY5 - 1, priceXY5, priceXY5 do
+		if i <= priceXY5 then
+		drawRect(start_x + i - 1, start_y + 1, 2, level_height - 4, Colors.X5Lines)
+		end
+		if i <= priceXY5 then
+		drawRect(start_x, start_y + i, level_width - 4, 2, Colors.X5Lines)
+		end
+	end
+	local y = start_y + 1
+	for i = 0, 9 do
+		local x = start_x
+		if floor(i/2) == i/2 then	drawRect(0, y - 1, x - 2, tile_size, Colors.SecondBack) end
+		FontLib_print(x - tile_size+6,y+4,"1",Color_new(255,255,255),3)
+		for j = 0, 9 do
+			drawRect(x, y, square_size, square_size, Colors.Tile)
+			if j < i then
+				Graphics.drawImage(x, y, cross_tex,Colors.Cross)
+			end
+			if i==0 then
+				if floor(j/2) == j/2 then
+					drawRect(x - 1, 0, tile_size, y - 2, Colors.SecondBack)
+				end
+				FontLib_print(x + half_size-6, y - 20,"1",Color_new(255,255,255),3)
+			end
+			if j==i then
+				Graphics.drawImage(x, y, tile_tex,Colors.Square)
+			end
+			x = x + tile_size
+		end
+		y = y + tile_size
+	end
+	drawRect(640, 0, 960, 544, Color_new(0,0,0,200))
+	if OptionsCLRNow == 0 then
+		drawRect(645, 20+16*(OptionsNow-1),310,13, Color_new(0,148,255,150))
+	else
+		drawRect(872+8*OptionsCLRNow, 20+16*(OptionsNow-1),8,13, Color_new(0,148,255,150))
+	end
+	local y = 20
+	for key, value in pairs(Colors) do
+		if y == 20+16*(OptionsNow-1) then 
+			OptionsNowKey = key
+		end
+		FontLib_print(665,y,key,Color_new(255,255,255))
+		FontLib_print(865,y,"0x"..rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),Color_new(255,255,255))
+		y = y + 16
+	end
+	FontLib_print(665,y,"Presets",Color_new(255,255,255))
+	FontLib_print(765,y,"<default>",Color_new(255,255,255))
+end
+local function Controls_Options()
+	if OptionsCLRNow==0 then
+		if Controls_check(pad, SCE_CTRL_UP) and not Controls_check(oldpad, SCE_CTRL_UP) then
+			OptionsNow = OptionsNow - 1
+		elseif Controls_check(pad, SCE_CTRL_DOWN) and not Controls_check(oldpad, SCE_CTRL_DOWN) then
+			OptionsNow = OptionsNow + 1
+		end
+		if Controls_check(pad, SCE_CTRL_CROSS) and not Controls_check(oldpad, SCE_CTRL_CROSS) then
+			OptionsCLRNow = 1
+		end
+		if OptionsNow<1 then OptionsNow = tlen(Colors)+1 end
+		if OptionsNow>tlen(Colors)+1 then OptionsNow = 1 end
+	else
+		local value = Colors[OptionsNowKey]
+		if Controls_check(pad, SCE_CTRL_UP) and not Controls_check(oldpad, SCE_CTRL_UP) then
+			Colors[OptionsNowKey] = Color_new(hex2rgb(sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),0,OptionsCLRNow-1)..OptionsColorsNext[sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),OptionsCLRNow,OptionsCLRNow)]..sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),OptionsCLRNow+1,len(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)})))))
+		elseif Controls_check(pad, SCE_CTRL_DOWN) and not Controls_check(oldpad, SCE_CTRL_DOWN) then
+			Colors[OptionsNowKey] = Color_new(hex2rgb(sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),0,OptionsCLRNow-1)..OptionsColorsPrev[sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),OptionsCLRNow,OptionsCLRNow)]..sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),OptionsCLRNow+1,len(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)})))))
+		end
+		if Controls_check(pad, SCE_CTRL_LEFT) and not Controls_check(oldpad, SCE_CTRL_LEFT) then
+			OptionsCLRNow = OptionsCLRNow - 1
+			elseif Controls_check(pad, SCE_CTRL_RIGHT) and not Controls_check(oldpad, SCE_CTRL_RIGHT) then
+			OptionsCLRNow = OptionsCLRNow + 1
+		end
+		if OptionsCLRNow>6 then OptionsCLRNow = 1 end
+		if OptionsCLRNow<1 then OptionsCLRNow = 6 end
+		if Controls_check(pad, SCE_CTRL_CROSS) and not Controls_check(oldpad, SCE_CTRL_CROSS) then
+			OptionsCLRNow = 0
+		end
+	end
+end
 Update() --Updating variables for new level
+state = 2
 while true do
 	dt = newTime / 8
 	Timer.reset(DeltaTimer)
 	Graphics.initBlend()
-	Screen.clear(Color_new(180,180,180))
-	drawLevel()
-	drawNumbers()
+	if state==1 then
+	Screen.clear(Colors.Background)
+		drawLevel()
+		drawNumbers()
+	elseif state==2 then
+		Screen.clear(Colors.Background)
+		drawOptionsLevel()
+	end
 	Graphics.termBlend()
 	pad = Controls.read()
-	Controls_frame()
-	touchScreen()
+	if state==1 then
+		Controls_frame()
+		touchScreen()
+		elseif state == 2 then
+		Controls_Options()
+	end
 	if Controls_click(SCE_CTRL_SELECT) then
 		FontLib_close()
 		FTP = FTP + 1
