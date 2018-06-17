@@ -5,9 +5,11 @@ local Libs = {
 appDir = "ux0:data/BL/" --Dir for app0
 libDir = appDir.."libs/" --Dir for libs in app0
 dataDir = appDir.."data/" --Dir for data in app0
-levelDir = appDir.."levels/" --Dir for levels in app0
+levelDir = appDir.."lvls/" --Dir for levels in app0
+themesDir = appDir.."thms/" --Dir for levels in app0
 dir = "ux0:data/BL/" --Dir for ux0:data/PiCrest
-clevelDir = dir.."clevels/" --Dir for custom levels
+configDir = dir.."config.ini"
+clevelDir = dir.."levels/" --Dir for custom levels
 for i = 1, #Libs do 
 	dofile(libDir..Libs[i]..".lua")
 end
@@ -29,13 +31,54 @@ local dontPress = false
 local lock_time, def_pause, lil_pause = 1000, 200, 60
 local pause = def_pause
 local oldpad, newpad = SCE_CTRL_CROSS, SCE_CTRL_CROSS
-local OptionsNow, OptionsCLRNow, OptionsNowKey = 1, 0, 0
+local OptionsNow, OptionsCLRNow, OptionsNowKey, Old_color = 1, 0, 0, Color_new(0,0,0)
 level = openPCL(levelDir.."level2.pcl")
+Options = {
+	["nowtheme"] = "default",
+	["animation"] = "fade",
+}
+local function readCfg(_path)
+	if System.doesFileExist(_path) then
+		local cfg = System.openFile(_path, FREAD)
+		local cfg_size = System.sizeFile(cfg)
+		local k,key,value = true,"",""
+		for i = 1, cfg_size do
+			local str = System.readFile(cfg, 1)
+			if string.byte(str) ~= 13 and string.byte(str)~=10 then
+				if str == ' ' then 
+					k = false 
+					else
+					if k then
+						key = key..str
+						else
+						value = value..str
+					end
+				end
+				elseif string.byte(str) == 10 then
+				k = true
+				Options[key] = value 
+				key = ''
+				value = ''
+			end
+		end
+		Options[key] = value 
+		System.closeFile(cfg)
+	end
+end
+local function updateCfg(_path, table)
+	System.deleteFile(_path)
+	local cfg = System.openFile(_path, FCREATE)
+	for k,v in pairs(table) do
+		System.writeFile(cfg, k.." "..v.."\n",len(k.." "..v.."\n"))
+	end
+	System.closeFile(cfg)
+end
+readCfg(configDir)
 local function tlen(t)
 	local a = 0
-		for k, v in pairs(t) do
-			a = a + 1
-		end
+	for k, v in pairs(t) do
+		a = a + 1
+	end
 	return a
 end
 local Colors = {
@@ -46,7 +89,8 @@ local Colors = {
 	SecondBack = Color_new(200, 0, 64),
 	X5Lines = Color_new(200,0,0),
 	Grid = Color_new(0,0,0),
-	Frame = Color_new(200, 0, 200)
+	Frame = Color_new(200, 0, 200),
+	SideNumbers = Color_new (255,255,255)
 }
 local OptionsColorsNext = {
 	["0"] = "1", ["1"] = "2", ["2"] = "3", ["3"] = "4", ["4"] = "5", ["5"] = "6", ["6"] = "7", ["7"] = "8", ["8"] = "9", ["9"] = "A", ["A"] = "B", ["B"] = "C", ["C"] = "D", ["D"] = "E", ["E"] = "F", ["F"] = "0"
@@ -54,6 +98,51 @@ local OptionsColorsNext = {
 local OptionsColorsPrev = {
 	["0"] = "F", ["1"] = "0", ["2"] = "1", ["3"] = "2", ["4"] = "3", ["5"] = "4", ["6"] = "5", ["7"] = "6", ["8"] = "7", ["9"] = "8", ["A"] = "9", ["B"] = "A", ["C"] = "B", ["D"] = "C", ["E"] = "D", ["F"] = "E"
 }
+local function AcceptTheme(_path)
+	local thm = System.openFile(_path, FREAD)
+	local thm_size = System.sizeFile(thm)
+	local k,key,value = true,"",""
+	for i = 1, thm_size do
+		local str = System.readFile(thm, 1)
+		if string.byte(str) ~= 13 and string.byte(str)~=10 then
+			if str == ' ' then 
+				k = false
+				else
+				if k then
+					key = key..str
+					else
+					value = value..str
+				end
+			end
+			elseif string.byte(str) == 10 then
+			k = true
+			Colors[key] = Color.new(hex2rgb(value)) 
+			key = ''
+			value = ''
+		end
+	end
+	System.closeFile(thm)
+end
+if Options["nowtheme"] == "custom" then
+	if System.doesFileExist(dir.."custom.thm") then
+		AcceptTheme(dir.."custom.thm")
+		else
+		Options["nowtheme"] = "default"
+		AcceptTheme(themesDir.."default.thm")
+	end
+	else
+	AcceptTheme(themesDir..Options["nowtheme"]..".thm")
+end
+updateCfg(configDir, Options)
+local function MakeTheme(_path, table)
+	System.deleteFile(_path)
+	local thm = System.openFile(_path, FCREATE)
+	for k,v in pairs(table) do
+		local hex = rgb2hex({Color.getR(v),Color.getG(v), Color.getB(v)})
+		System.writeFile(thm, k.." "..hex..'\n', len(k.." "..hex..'\n'))
+	end
+	System.closeFile(thm)
+end
 local function updateStacks() --Creating side numbers
 	for i = 0, max(level.width,level.height) - 1 do
 		if i < level.width then		tile.stackU[i] = {[0]=0}	end
@@ -143,10 +232,10 @@ local function drawLevel()
 	local xLine = 0
 	for i = priceXY5 - 1, max(x5lines, y5lines), priceXY5 do
 		if i<=x5lines then
-		drawRect(start_x + i, start_y, 3, level_height, Colors.X5Lines)
+			drawRect(start_x + i, start_y, 3, level_height, Colors.X5Lines)
 		end
 		if i<=y5lines then
-		drawRect(start_x, start_y + i, level_width, 3, Colors.X5Lines)
+			drawRect(start_x, start_y + i, level_width, 3, Colors.X5Lines)
 		end
 	end
 	local y = square_start_y
@@ -162,29 +251,57 @@ local function drawLevel()
 			end
 			tmp = tmp + 1
 			local tmp1,tmp2,tmp3 = level.empty[tmp],level.square[tmp],level.cross[tmp]
-			if tmp2~=1 then
+			if Options["animation"]~="off" and tmp2~=1 then
+				drawRect(x,y,square_size,square_size,	Colors.Tile)
+				elseif Options["animation"]=="off" and tmp1~=1 then
 				drawRect(x,y,square_size,square_size,	Colors.Tile)
 			end
-			if tmp3>0 and tmp3<1 then
-				Graphics.drawImageExtended(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,0,tmp3,tmp3,Colors.Cross)
-			elseif tmp3>0 then
-				Graphics.drawImage(x, y, cross_tex,Colors.Cross)
-			end
-			if tmp2>0 and tmp2<1 then
-				Graphics.drawImageExtended(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,0,tmp2,tmp2,Colors.Square)
-			elseif tmp2>0 then
-				Graphics.drawImage(x, y, tile_tex,Colors.Square)
+			if Options["animation"] == "fade" then
+				if tmp3>0 and tmp3<1 then
+					Graphics.drawImage(x, y, cross_tex,Color_new(Color.getR(Colors.Cross),Color.getG(Colors.Cross),Color.getB(Colors.Cross),tmp3*255))
+					elseif tmp3>0 then
+					Graphics.drawImage(x, y, cross_tex,Colors.Cross)
+				end
+				if tmp2>0 and tmp2<1 then
+					Graphics.drawImage(x, y, tile_tex,Color_new(Color.getR(Colors.Square),Color.getG(Colors.Square),Color.getB(Colors.Square),tmp2*255))
+					elseif tmp2>0 then
+					Graphics.drawImage(x, y, tile_tex,Colors.Square)
+				end
+				elseif Options["animation"]=="rescale" then
+				if tmp3>0 and tmp3<1 then
+					Graphics.drawImageExtended(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,0,tmp3,tmp3,Colors.Cross)
+					elseif tmp3>0 then
+					Graphics.drawImage(x, y, cross_tex,Colors.Cross)
+				end
+				if tmp2>0 and tmp2<1 then
+					Graphics.drawImageExtended(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,0,tmp2,tmp2,Colors.Square)
+					elseif tmp2>0 then
+					Graphics.drawImage(x, y, tile_tex,Colors.Square)
+				end
+				elseif Options["animation"]=="off" then
+				if tmp1==1 then
+					Graphics.drawImage(x, y, tile_tex,Colors.Square)
+					elseif tmp1==-1 then
+					Graphics.drawImage(x, y, cross_tex,Colors.Cross)
+				end
 			end
 			x = x + tile_size
-			local add = dt*0.05
-			if		tmp1 == 1	and tmp2 < 1 then	level.square[tmp]	= tmp2 + add
-			elseif	tmp1 == 0	and tmp2 > 0 then	level.square[tmp]	= tmp2 - add	end
-			if		tmp1 == -1	and tmp3 < 1 then	level.cross[tmp]	= tmp3 + add
-			elseif	tmp1 == 0	and tmp3 > 0 then	level.cross[tmp]	= tmp3 - add	end
-			if		tmp1 == 1	and tmp2 > 1 then	level.square[tmp]	= 1
-			elseif	tmp1 == 0	and tmp2 < 0 then	level.square[tmp]	= 0				end
-			if		tmp1 == -1	and tmp3 > 1 then	level.cross[tmp]	= 1
-			elseif	tmp1 == 0	and tmp3 < 0 then	level.cross[tmp]	= 0				end
+			local add
+			if Options["animation"]=="fade" then
+				add = dt*0.03
+				elseif Options["animation"]=="rescale" then
+				add = dt*0.05
+			end
+			if Options["animation"]~="off" then
+				if		tmp1 == 1	and tmp2 < 1 then	level.square[tmp]	= tmp2 + add
+				elseif	tmp1 == 0	and tmp2 > 0 then	level.square[tmp]	= tmp2 - add	end
+				if		tmp1 == -1	and tmp3 < 1 then	level.cross[tmp]	= tmp3 + add
+				elseif	tmp1 == 0	and tmp3 > 0 then	level.cross[tmp]	= tmp3 - add	end
+				if		tmp1 == 1	and tmp2 > 1 then	level.square[tmp]	= 1
+				elseif	tmp1 == 0	and tmp2 < 0 then	level.square[tmp]	= 0				end
+				if		tmp1 == -1	and tmp3 > 1 then	level.cross[tmp]	= 1
+				elseif	tmp1 == 0	and tmp3 < 0 then	level.cross[tmp]	= 0				end
+			end
 		end
 		y = y + tile_size
 	end
@@ -204,13 +321,13 @@ local function drawNumbers() --Draw side numbers
 			if a and j<=clen then
 				yU = yU - tile_size
 				local textU = tile.stackU[i][j]
-				FontLib_print(xU - len(textU) * 5, yU,textU, Color_new(255, 255, 255), 3)
+				FontLib_print(xU - len(textU) * 5, yU,textU, Colors.SideNumbers, 3)
 				--FontLib_printWShadow(xU - len(textU) * 4, - 2, yU, 2, textU, Color_new(255, 255, 255), Color_new(0, 0, 0), 2)
 			end
 			if b and j<=dlen then
 				xL = xL - tile_size
 				local textL = tile.stackL[i][j]
-				FontLib_print(xL - len(textL) * 5, yL,textL, Color_new(255, 255, 255), 3)
+				FontLib_print(xL - len(textL) * 5, yL,textL, Colors.SideNumbers, 3)
 				--FontLib_printWShadow(xL - len(textL) * 4, - 2, yL, 2, textL, Color_new(255, 255, 255), Color_new(0, 0, 0), 2)
 			end
 		end
@@ -326,17 +443,17 @@ local function drawOptionsLevel()
 	local priceXY5 = 5*tile_size
 	for i = priceXY5 - 1, priceXY5, priceXY5 do
 		if i <= priceXY5 then
-		drawRect(start_x + i - 1, start_y + 1, 2, level_height - 4, Colors.X5Lines)
+			drawRect(start_x + i - 1, start_y + 1, 2, level_height - 4, Colors.X5Lines)
 		end
 		if i <= priceXY5 then
-		drawRect(start_x, start_y + i, level_width - 4, 2, Colors.X5Lines)
+			drawRect(start_x, start_y + i, level_width - 4, 2, Colors.X5Lines)
 		end
 	end
 	local y = start_y + 1
 	for i = 0, 9 do
 		local x = start_x
 		if floor(i/2) == i/2 then	drawRect(0, y - 1, x - 2, tile_size, Colors.SecondBack) end
-		FontLib_print(x - tile_size+6,y+4,"1",Color_new(255,255,255),3)
+		FontLib_print(x - tile_size+6,y+4,"1",Colors.SideNumbers,3)
 		for j = 0, 9 do
 			drawRect(x, y, square_size, square_size, Colors.Tile)
 			if j < i then
@@ -346,7 +463,7 @@ local function drawOptionsLevel()
 				if floor(j/2) == j/2 then
 					drawRect(x - 1, 0, tile_size, y - 2, Colors.SecondBack)
 				end
-				FontLib_print(x + half_size-6, y - 20,"1",Color_new(255,255,255),3)
+				FontLib_print(x + half_size-6, y - 20,"1",Colors.SideNumbers,3)
 			end
 			if j==i then
 				Graphics.drawImage(x, y, tile_tex,Colors.Square)
@@ -355,11 +472,16 @@ local function drawOptionsLevel()
 		end
 		y = y + tile_size
 	end
+	drawEmptyRect(start_x - 2, start_y - 1, frame_size, frame_size, 4, Colors.Frame)
 	drawRect(640, 0, 960, 544, Color_new(0,0,0,200))
 	if OptionsCLRNow == 0 then
 		drawRect(645, 20+16*(OptionsNow-1),310,13, Color_new(0,148,255,150))
-	else
-		drawRect(872+8*OptionsCLRNow, 20+16*(OptionsNow-1),8,13, Color_new(0,148,255,150))
+		else
+		local value = Colors[OptionsNowKey]
+		drawRect(10,9,200,79,Color_new(0,0,0,200))
+		FontLib_printScaled(16, 13,OptionsNowKey,2,2,Color_new(255,255,255))
+		drawRect(16+24-3+24*OptionsCLRNow, 16+26,24,39, Color_new(0,148,255,150))
+		FontLib_printScaled(16, 16+26,"0x"..rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),3,3,Color_new(255,255,255))
 	end
 	local y = 20
 	for key, value in pairs(Colors) do
@@ -371,25 +493,26 @@ local function drawOptionsLevel()
 		y = y + 16
 	end
 	FontLib_print(665,y,"Presets",Color_new(255,255,255))
-	FontLib_print(765,y,"<default>",Color_new(255,255,255))
+	FontLib_print(765,y,"<"..Options.nowtheme..">",Color_new(255,255,255))
 end
 local function Controls_Options()
 	if OptionsCLRNow==0 then
 		if Controls_check(pad, SCE_CTRL_UP) and not Controls_check(oldpad, SCE_CTRL_UP) then
 			OptionsNow = OptionsNow - 1
-		elseif Controls_check(pad, SCE_CTRL_DOWN) and not Controls_check(oldpad, SCE_CTRL_DOWN) then
+			elseif Controls_check(pad, SCE_CTRL_DOWN) and not Controls_check(oldpad, SCE_CTRL_DOWN) then
 			OptionsNow = OptionsNow + 1
 		end
 		if Controls_check(pad, SCE_CTRL_CROSS) and not Controls_check(oldpad, SCE_CTRL_CROSS) then
 			OptionsCLRNow = 1
+			Old_color = Colors[OptionsNowKey]
 		end
 		if OptionsNow<1 then OptionsNow = tlen(Colors)+1 end
 		if OptionsNow>tlen(Colors)+1 then OptionsNow = 1 end
-	else
+		else
 		local value = Colors[OptionsNowKey]
 		if Controls_check(pad, SCE_CTRL_UP) and not Controls_check(oldpad, SCE_CTRL_UP) then
 			Colors[OptionsNowKey] = Color_new(hex2rgb(sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),0,OptionsCLRNow-1)..OptionsColorsNext[sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),OptionsCLRNow,OptionsCLRNow)]..sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),OptionsCLRNow+1,len(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)})))))
-		elseif Controls_check(pad, SCE_CTRL_DOWN) and not Controls_check(oldpad, SCE_CTRL_DOWN) then
+			elseif Controls_check(pad, SCE_CTRL_DOWN) and not Controls_check(oldpad, SCE_CTRL_DOWN) then
 			Colors[OptionsNowKey] = Color_new(hex2rgb(sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),0,OptionsCLRNow-1)..OptionsColorsPrev[sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),OptionsCLRNow,OptionsCLRNow)]..sub(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),OptionsCLRNow+1,len(rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)})))))
 		end
 		if Controls_check(pad, SCE_CTRL_LEFT) and not Controls_check(oldpad, SCE_CTRL_LEFT) then
@@ -401,6 +524,15 @@ local function Controls_Options()
 		if OptionsCLRNow<1 then OptionsCLRNow = 6 end
 		if Controls_check(pad, SCE_CTRL_CROSS) and not Controls_check(oldpad, SCE_CTRL_CROSS) then
 			OptionsCLRNow = 0
+			if Colors[OptionsNowKey]~= Old_color then
+				MakeTheme(dir.."custom.thm", Colors)
+				Options["nowtheme"] = "custom"
+				updateCfg(configDir, Options)
+			end
+		end
+		if Controls_check(pad, SCE_CTRL_CIRCLE) and not Controls_check(oldpad, SCE_CTRL_CIRCLE) then
+			Colors[OptionsNowKey] = Old_color
+			OptionsCLRNow = 0
 		end
 	end
 end
@@ -411,10 +543,10 @@ while true do
 	Timer.reset(DeltaTimer)
 	Graphics.initBlend()
 	if state==1 then
-	Screen.clear(Colors.Background)
+		Screen.clear(Colors.Background)
 		drawLevel()
 		drawNumbers()
-	elseif state==2 then
+		elseif state==2 then
 		Screen.clear(Colors.Background)
 		drawOptionsLevel()
 	end
@@ -425,6 +557,9 @@ while true do
 		touchScreen()
 		elseif state == 2 then
 		Controls_Options()
+	end
+	if Controls_click(SCE_CTRL_RTRIGGER) then
+		if state == 2 then state = 1 else state = 2 end
 	end
 	if Controls_click(SCE_CTRL_SELECT) then
 		FontLib_close()
