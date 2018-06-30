@@ -16,7 +16,7 @@ function rgb2hex(rgb)
 		hexadecimal = hexadecimal .. hex
 	end
 	return hexadecimal
-end
+	end
 function hex2rgb(hex)
     hex = hex:gsub("#","")
     return tonumber("0x"..hex:sub(1,2)), tonumber("0x"..hex:sub(3,4)), tonumber("0x"..hex:sub(5,6))
@@ -35,14 +35,13 @@ function PCL_Lib.open(_path) --Takes table from PCL file
 			lvl[now] = ""
 		end
 	end
-	if lvl[1]=="" then lvl.record = nil else lvl.record = tonumber(lvl[1]) end
-	lvl.name = lvl[2]
-	lvl.width = tonumber(lvl[3])
-	lvl.height = tonumber(lvl[4])
+	lvl.name = lvl[1]
+	lvl.width = tonumber(lvl[2])
+	lvl.height = tonumber(lvl[3])
 	lvl.map = {}
 	lvl.pmap = {}
 	lvl.path = _path
-	local now = 5
+	local now = 4
 	local y = 0
 	for i = 1, lvl.height do
 		local x = 1
@@ -64,41 +63,16 @@ function PCL_Lib.open(_path) --Takes table from PCL file
 	for i = 1, #lvl do
 		table.remove(lvl, 1)
 	end
-	System.closeFile(pcl)
+	System.closeFile(pcl)	
 	return lvl
 end
-function PCL_Lib.getRN(_path) --Gets Record time and name from PCL file
-	local time, name = "", ""
-	pcl = System.openFile(_path, FREAD)
-	pcl_size = System.sizeFile(pcl)
-	local now = 1
-	for i = 1, pcl_size do
-		local str = System.readFile(pcl,1)
-		if string.byte(str) ~= 13 and string.byte(str)~=10 then
-			if now == 1 then
-			time = time..str
-			elseif now == 2 then
-			name = name..str
-			end
-			elseif string.byte(str) == 10 then
-			if now == 2 then
-			break
-			else
-			now = now + 1
-			end
-		end
-	end
-	System.closeFile(pcl)
-	time = tonumber(time)
-	return time, name
-end
 function PCL_Lib.create(_path, level, check) --Create new or Rewrite old PCL file
-	local str = {tostring(level.record).."\n", tostring(level.name).."\n", tostring(level.width).."\n", tostring(level.height).."\n", map = {}}
 	if check and System.doesFileExist(_path) then
 		return false
 		elseif check then
 		return true
 	end
+	local str = {tostring(level.name).."\n", tostring(level.width).."\n", tostring(level.height).."\n", map = {}}
 	if System.doesFileExist(_path) then
 		System.deleteFile(_path)
 	end
@@ -121,30 +95,6 @@ function PCL_Lib.create(_path, level, check) --Create new or Rewrite old PCL fil
 			System.writeFile(pcl, str.map[x], len(str.map[x]))
 		end
 		System.writeFile(pcl, '\n', 1)
-	end
-	System.closeFile(pcl)
-end
-function PCL_Lib.update(_path, record) --Update PCL recordTime
-	local lvl = {[1] = ""}
-	local record = tostring(record).."\n"
-	pcl = System.openFile(_path, FREAD)
-	local now = 1
-	for i = 1, pcl_size do
-		local str = System.readFile(pcl,1)
-		if string.byte(str) ~= 13 and string.byte(str)~=10 then
-			lvl[now] = lvl[now]..str
-			elseif string.byte(str) == 10 then
-			lvl[now] = lvl[now].."\n"
-			now = now + 1
-			lvl[now] = ""
-		end
-	end
-	System.closeFile(pcl)
-	System.deleteFile(_path)
-	pcl = System.openFile(_path, FCREATE)
-	System.writeFile(pcl, record, len(record))
-	for i = 2, now do
-		System.writeFile(pcl, lvl[i], len(lvl[i]))
 	end
 	System.closeFile(pcl)
 end

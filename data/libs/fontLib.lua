@@ -1,4 +1,4 @@
-_FL_TEX = Graphics.loadImage(appDir.."libs/font.png")
+_FL_TEX = Graphics.loadImage(libDir.."font.png")
 _FL_LEN = string.len
 _FL_SUB = string.sub
 _FL_SUP = string.upper
@@ -37,7 +37,7 @@ FontLib = {
 		extrafunc = function (l) return _FL_SUP(l) end,
 		width = 10,
 		height = 15,
-		startY = 27,
+		startY = 28,
 		letters = {
 			"0","1","2","3","4","5","6","7","8","9"
 		}
