@@ -1,11 +1,13 @@
-local Controls_check, Color_new = Controls.check, Color.new
-
+local Controls_check, Color_new, Color_getR, Color_getG, Color_getB, Color_getA = Controls.check, Color.new, Color.getR, Color.getG, Color.getB, Color.getA
+local Graphics_drawImage, Graphics_dIE = Graphics.drawImage, Graphics.drawImageExtended
+local Timer_new, Timer_reset, Timer_resume, Timer_pause, Timer_isPlaying, Timer_getTime, Timer_setTime = Timer.new, Timer.reset, Timer.resume, Timer.pause, Timer.isPlaying, Timer.getTime, Timer.setTime
 database = {}
 local Libs = { -- Libs to load
 	
 	"fontLib",
 	"PCLrwLib",
-	"configLib"
+	"configLib",
+	"themeLib"
 	
 }
 
@@ -37,7 +39,15 @@ local OptionsColorsPrev = { -- x => x - 1
 
 local Animations = {
 	
-	"rescale", "fade", "off", now = 1
+	"rescale", "fade", "rotating", "off", now = 1
+	
+}
+
+local Options = { -- Default options
+	
+	["nowtheme"] = "default",
+	["animation"] = "fade",
+	["fps"] = "on",
 	
 }
 
@@ -50,6 +60,12 @@ dir = "ux0:data/BL/" --Dir for ux0:data/PiCrest
 configDir = dir.."config.ini"
 clevelDir = dir.."levels/" --Dir for custom levels
 dbDir = dir.."save.db"
+
+if not System.doesFileExist (dir.."custom.thm") then -- Creates custom.thm file, if it isn't exists
+	
+	MakeTheme(dir.."custom.thm", Colors)
+	
+end
 
 if not System.doesFileExist(dbDir) then
 	db = Database.open(dbDir)
@@ -88,9 +104,11 @@ local pie = math.pi
 local hex2rgb, rgb2hex = hex2rgb, rgb2hex
 local openPCL, updatePCL, createPCL, getRNPCL = PCL_Lib.open, PCL_Lib.update, PCL_Lib.create, PCL_Lib.getRN
 local readCfg, updateCfg = readCfg, updateCfg
+local AcceptTheme, MakeTheme = AcceptTheme, MakeTheme
 local tile_tex, cross_tex = Graphics.loadImage(dataDir.."tile.png"),Graphics.loadImage(dataDir.."cross.png")
-local tile = {stackU = {}, stackL = {}}
-local DeltaTimer, newTime, actionTimer, gameTimer = Timer.new(), 0, Timer.new(), Timer.new()
+local tile_stackU, tile_stackL = {}, {}
+local DeltaTimer, newTime, actionTimer, gameTimer = Timer_new(), 0, Timer_new(), Timer_new()
+local FPSTimer = Timer_new()
 local start_x, start_y, tile_size = 0, 0, 24
 local half_size, square_size, square_start_x, square_start_y = tile_size / 2, tile_size - 2, start_x + 1,start_y + 1
 local level_width, level_height = 0, 0
@@ -108,8 +126,107 @@ local shadow = Color_new (0, 0, 0, 100)
 local newlevel = {}
 local tile_oldAdd, tile_nowAdd = 1, 1
 local mh_rot = pie
+local level = {}
+local steps = {"Choosing size"}
+local rot_pause, rot_pause_max, rot3 = 0, 16*pie
+local numbers_dim = 0
+local function Rotations ()
 
-local function getRecord(_path)
+	rot_pause = rot_pause + pie/60 * dt
+	
+	if rot_pause > rot_pause_max then rot_pause = rot_pause - rot_pause_max end
+
+end
+
+local function Controls_click (BUTTON) -- On click action
+	
+	return Controls_check(pad, BUTTON) and not Controls_check(oldpad, BUTTON)
+	
+end
+
+local function newAlpha(color, a)
+	if a==255 then return color end
+	return Color_new(Color_getR(color), Color_getG(color), Color_getB(color), a)
+end
+
+local function change_color(color, f)
+	if f == 0 then return color end
+	local r, g, b,a = Color_getR(color),Color_getG(color),Color_getB(color),Color_getA(color)
+	local L = 0.3 * r + 0.6 * g + 0.1 * b
+	return Color_new(r+f*(L-r), g+f*(L-g), b+f*(L-b), a)
+end
+
+local function updateAllData ()
+	
+	for i = 1, #scan_themes do -- Checking system themes
+		
+		if sub(scan_themes[i].name,len(scan_themes[i].name)-3,len(scan_themes[i].name)) == ".thm" then
+			
+			themes[#themes+1] = sub(scan_themes[i].name,1,len(scan_themes[i].name) - 4)
+			
+		end
+			
+	end
+
+	themes[#themes + 1] = "custom" -- Adds custom theme to system themes
+	
+	readCfg (configDir, Options) -- Loads cfg file
+	
+	if Options["nowtheme"] == "custom" then -- Load theme from last save
+	
+		if System.doesFileExist(dir.."custom.thm") then
+			
+			AcceptTheme(dir.."custom.thm", Colors)
+			
+			else
+			
+			Options["nowtheme"] = "default"
+			AcceptTheme(themesDir.."default.thm", Colors)
+			
+		end
+	
+	else
+	
+		if System.doesFileExist(themesDir..Options["nowtheme"]..".thm") then
+			
+			AcceptTheme(themesDir..Options["nowtheme"]..".thm", Colors)
+			
+			else
+			
+			Options["nowtheme"] = "default"
+			AcceptTheme(themesDir.."default.thm", Colors)
+			
+		end
+	
+	end
+
+	for i=1, #themes do
+		
+		if themes[i] == Options["nowtheme"] then
+			
+			themes.now = i
+			break
+			
+		end
+		
+	end
+
+	for i=1, #Animations do 
+		
+		if Animations[i] == Options["animation"] then
+			
+			Animations.now = i
+			break
+			
+		end
+		
+	end
+	
+	updateCfg (configDir, Options) -- Save changing
+	
+end
+
+local function getRecord (_path)
 	local record = 0
 	for i=1, #database_p do
 		if database_p[i] == _path then
@@ -120,7 +237,7 @@ local function getRecord(_path)
 	return record
 end
 
-local function updateRecord(_path, record)
+local function updateRecord (_path, record)
 	local id = #database_p + 1
 	local create = true
 	for i=1, #database_p do
@@ -141,7 +258,7 @@ local function updateRecord(_path, record)
 	Database.close(db)
 end
 
-local function toDigits(x)
+local function toDigits (x)
 	
 	local mt1000 = floor(x / 1000)
 	local mt60 = floor(mt1000 / 60)
@@ -188,168 +305,127 @@ local function drawEmptyRect (x, y, w, h, t, c) -- drawRect outline x, y, width,
 	
 end
 
-for i = 1, #scan_themes do -- Checking system themes
-	
-	if sub(scan_themes[i].name,len(scan_themes[i].name)-3,len(scan_themes[i].name)) == ".thm" then
-		
-		themes[#themes+1] = sub(scan_themes[i].name,1,len(scan_themes[i].name) - 4)
-		
-	end
-	
-end
+local pause_delta, pause_status, pause_gravity, pause_buttons, pause_now, pause_y_buttons, pause_x_buttons = 0, false, 0, {"Continue", "Options", "Exit"}, 0, 340, 50
 
-themes[#themes + 1] = "custom" -- Adds custom theme to system themes
-local level = openPCL (levelDir.."level1.pcl") -- Loads *.pcl file
-
-local Options = { -- Default options
+local function pause_screen ()
 	
-	["nowtheme"] = "default",
-	["animation"] = "fade"
+	local delta = pause_delta
 	
-}
-
-readCfg (configDir, Options) -- Loads cfg file
-
-local function MakeTheme (_path, table) -- saves custom theme to default directory
+	if (Controls_click(SCE_CTRL_START) or pause_status and (Controls_click(SCE_CTRL_CIRCLE) or Controls_click(SCE_CTRL_CROSS) and pause_buttons[pause_now] == "Continue")) and (delta==1 or delta==0) then
 	
-	System.deleteFile(_path)
-	local thm = System.openFile(_path, FCREATE)
-	
-	for k,v in pairs(table) do
+		pause_now = 0
+		dontPress = true
+		pause_status = not pause_status
 		
-		local hex = rgb2hex({Color.getR(v),Color.getG(v), Color.getB(v)})
-		System.writeFile(thm, k.." "..hex..'\n', len(k.." "..hex..'\n'))
+		if pause_status and Timer_isPlaying(gameTimer) then
+			
+			Timer_pause(gameTimer)
+			
+		elseif not (pause_status or Timer_isPlaying(gameTimer)) then
 		
-	end
-	
-	System.closeFile(thm)
-end
-
-local function AcceptTheme (_path) -- Loads theme from *.thm file
-	
-	local thm = System.openFile(_path, FREAD)
-	local thm_size = System.sizeFile(thm)
-	local k,key,value = true,"",""
-	
-	for i = 1, thm_size do
-		
-		local str = System.readFile(thm, 1)
-		local byte = string.byte(str)
-		
-		if byte ~= 13 and byte~=10 then
-			
-			if str == ' ' then 
-				
-				k = false
-				
-				else
-				
-				if k then
-					
-					key = key..str
-					
-					else
-					
-					value = value..str
-					
-				end
-				
-			end
-			
-			elseif byte == 10 then
-			
-			k = true
-			Colors[key] = Color.new(hex2rgb(value)) 
-			key = ''
-			value = ''
-			
-		end 
-		
-		if byte~=10 and i == thm_size then
-			
-			k = true
-			
-			Colors[key] = Color.new(hex2rgb(value)) 
-			
-			key = ''
-			
-			value = ''
+			Timer_resume(gameTimer)
 			
 		end
 		
 	end
 	
-	System.closeFile(thm)
+	if pause_status and delta + pause_gravity < 1 then
 	
-end
-
-if Options["nowtheme"] == "custom" then -- Load theme from last save
+		pause_delta = pause_delta + pause_gravity
+		pause_gravity = pause_gravity + 0.005*dt
+		rot_pause = 0
+		
+		elseif pause_status then
+		
+		pause_delta = 1
+		pause_gravity = 0
+		
+	elseif not pause_status and delta - pause_gravity > 0 then
 	
-	if System.doesFileExist(dir.."custom.thm") then
+		pause_delta = pause_delta - pause_gravity
+		pause_gravity = pause_gravity + 0.005*dt
 		
-		AcceptTheme(dir.."custom.thm")
-		
-		else
-		
-		Options["nowtheme"] = "default"
-		AcceptTheme(themesDir.."default.thm")
+	elseif not pause_status then
+	
+		pause_delta = 0
+		pause_gravity = 0
 		
 	end
 	
-	else
+	if pause_delta > 0 then
 	
-	if System.doesFileExist(themesDir..Options["nowtheme"]..".thm") then
+		drawRect(0,0,960,544,Color_new(0, 0, 0, 100*delta))
+		local y = 544 - (544 -  pause_y_buttons)*pause_delta
+		local x = pause_x_buttons
+		local _up, _down = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN)
 		
-		AcceptTheme(themesDir..Options["nowtheme"]..".thm")
+		if _down then
 		
-		else
+			pause_now = pause_now + 1
+			if pause_now > #pause_buttons then	pause_now = 1	end
+			
+		elseif _up then
 		
-		Options["nowtheme"] = "default"
-		AcceptTheme(themesDir.."default.thm")
+			pause_now = pause_now - 1
+			if pause_now < 1 then	pause_now = #pause_buttons	end
+			
+		end
+		
+		FontLib_printExtended(145, 100*pause_delta+5, "Pause", 5, 5, pie/27*sin(rot_pause/2), Color_new(0,0,0,100*pause_delta) )
+		FontLib_printExtended(150, 100*pause_delta, "Pause", 5, 5, pie/27*sin(rot_pause/2), Color_new(255,255,255,255*pause_delta) )
+		
+		for i = 1, #pause_buttons do
+			
+			local size = i + 10
+			local color = Color_new(255,255,255,255*delta)
+			pause_buttons[size] = pause_buttons[size] or 4
+			
+			if pause_now ~= i then
+				
+				if pause_buttons[size]>4 then
+					
+					pause_buttons[size] = pause_buttons[size] - 0.1*dt
+					
+					elseif pause_buttons[size]<4 then
+					
+					pause_buttons[size] = 4
+				
+				end				
+			
+			else
+				
+				if pause_buttons[size]<5 then
+					
+					pause_buttons[size] = pause_buttons[size] + 0.1*dt
+					
+					elseif pause_buttons[size]>5 then
+					
+					pause_buttons[size] = 5
+				
+				end
+				
+				color = Color_new(255,216,0,255*delta)
+			
+			end
+			
+			FontLib_printScaled (x + 10*(pause_buttons[size] - 4)-4, y+4, pause_buttons[i],pause_buttons[size],pause_buttons[size], shadow)
+			FontLib_printScaled (x + 10*(pause_buttons[size] - 4), y, pause_buttons[i],pause_buttons[size],pause_buttons[size], color)
+			y = y + 14*pause_buttons[size]
+		
+		end
 		
 	end
-	
 end
 
-for i=1, #themes do
+local function minus ()
 	
-	if themes[i] == Options["nowtheme"] then
-		
-		themes.now = i
-		break
-		
-	end
-	
-end
-
-for i=1, #Animations do 
-	
-	if Animations[i] == Options["animation"] then
-		
-		Animations.now = i
-		break
-		
-	end
-	
-end
-
-updateCfg (configDir, Options) -- Save changing
-
-local function minus()
-	
-	Timer.reset(actionTimer)
+	Timer_reset(actionTimer)
 	pause = lock_time
 	tile_oldAdd = tile_nowAdd
-	local time = Timer.getTime(gameTimer)+tile_nowAdd*60000
-	Timer.setTime(gameTimer,-time)
+	local time = Timer_getTime(gameTimer)+tile_nowAdd*60000
+	Timer_setTime(gameTimer,-time)
 	if tile_nowAdd==1 then tile_nowAdd=2 elseif tile_nowAdd==2 then tile_nowAdd=4 elseif tile_nowAdd==4 then tile_nowAdd = 8 end
 	mh_rot = 0
-	
-end
-
-if not System.doesFileExist (dir.."custom.thm") then -- Creates custom.thm file, if it isn't exists
-	
-	MakeTheme(dir.."custom.thm", Colors)
 	
 end
 
@@ -357,9 +433,9 @@ local function updateStacks () -- Creating side numbers
 	
 	for i = 0, max(level.width,level.height) - 1 do
 		
-		if i < level.width then		tile.stackU[i] = {[0]=0}	end
+		if i < level.width then		tile_stackU[i] = {[0]=0}	end
 		
-		if i < level.height then	tile.stackL[i] = {[0]=0}	end
+		if i < level.height then	tile_stackL[i] = {[0]=0}	end
 		
 	end
 	
@@ -373,14 +449,14 @@ local function updateStacks () -- Creating side numbers
 				
 				if level.map[j*level.width+i+1] then
 					
-					tile.stackU[i][now] = tile.stackU[i][now] + 1
+					tile_stackU[i][now] = tile_stackU[i][now] + 1
 					
 					else
 					
-					if tile.stackU[i][now] and tile.stackU[i][now] > 0 then
+					if tile_stackU[i][now] and tile_stackU[i][now] > 0 then
 						
 						now = now + 1
-						tile.stackU[i][now] = 0
+						tile_stackU[i][now] = 0
 						
 					end
 					
@@ -389,11 +465,11 @@ local function updateStacks () -- Creating side numbers
 				
 			end
 			
-			if tile.stackU[i][now] == 0 and tile.stackU[i][0] ~= 0 then tile.stackU[i][now]=nil end
+			if tile_stackU[i][now] == 0 and tile_stackU[i][0] ~= 0 then tile_stackU[i][now]=nil end
 			
 		end
 		
-		tile.ULen = #tile.stackU
+		tile_ULen = #tile_stackU
 		
 	end
 	
@@ -411,14 +487,14 @@ local function updateStacks () -- Creating side numbers
 				
 				if level.map[tmp] then
 					
-					tile.stackL[i][now] = tile.stackL[i][now] + 1
+					tile_stackL[i][now] = tile_stackL[i][now] + 1
 					
 					else
 					
-					if tile.stackL[i][now] and tile.stackL[i][now] > 0 then
+					if tile_stackL[i][now] and tile_stackL[i][now] > 0 then
 						
 						now = now + 1
-						tile.stackL[i][now] = 0
+						tile_stackL[i][now] = 0
 						
 					end
 					
@@ -426,17 +502,17 @@ local function updateStacks () -- Creating side numbers
 				
 			end
 			
-			if tile.stackL[i][now] == 0 and tile.stackL[i][0]~=0 then tile.stackL[i][now]=nil end
+			if tile_stackL[i][now] == 0 and tile_stackL[i][0]~=0 then tile_stackL[i][now]=nil end
 			
 		end
 		
-		tile.LLen = #tile.stackL
+		tile_LLen = #tile_stackL
 		
 	end
 	
 end
 
-local function Update (_path) -- Updating variables for new level
+local function Update () -- Updating variables for new level
 	
 	start_x = (960 - level.width * tile_size)/2
 	start_y = (544 - (level.height) * tile_size + 19*ceil(level.height / 2))/2 - 4
@@ -446,7 +522,7 @@ local function Update (_path) -- Updating variables for new level
 	frame_x = 0
 	frame_y = 0
 	level.empty = {}
-	level.record = getRecord(_path)
+	level.record = getRecord(level.path)
 	level.recInms = level.record
 	level.record = toDigits(level.record)
 	level.cross = {}
@@ -482,38 +558,37 @@ local function Update (_path) -- Updating variables for new level
 	
 end
 
-local function Controls_click (BUTTON) -- On click action
-	
-	return Controls_check(pad, BUTTON) and not Controls_check(oldpad, BUTTON)
-	
-end
-
 local function drawLevel () --Draws level
 	
-	drawRect(start_x - 1, start_y - 1, level_width + 2, level_height + 2, Colors.Grid)
+	drawRect(start_x - 1, start_y - 1, level_width + 2, level_height + 2, change_color(Colors.Grid, pause_delta))
 	local xLine = 0
+	local color_x5lines = change_color(Colors.X5Lines, pause_delta)
 	
 	for i = priceXY5 - 1, max(x5lines, y5lines), priceXY5 do
 		
 		if i <= x5lines then
-			drawRect(start_x + i, start_y+1, 2, level_height-2, Colors.X5Lines)
+			drawRect(start_x + i, start_y+1, 2, level_height-2, color_x5lines)
 		end
 		
 		if i <= y5lines then
-			drawRect(start_x+1, start_y + i, level_width-2, 2, Colors.X5Lines)
+			drawRect(start_x+1, start_y + i, level_width-2, 2, color_x5lines)
 		end
 		
 	end
 	
 	local y = square_start_y
 	local tmp = 0
+	local color_secondback = change_color(Colors.SecondBack, pause_delta)
+	local color_tile = change_color(Colors.Tile, pause_delta)
+	local color_cross = change_color(Colors.Cross, pause_delta)
+	local color_square = change_color(Colors.Square, pause_delta)
 	
 	for i = 0, level.height-1 do
 		
 		local x = square_start_x
 		local i_len = i / 2
 		
-		if floor(i_len) == i_len then	drawRect(0, y - 1, x - 2, tile_size, Colors.SecondBack) end
+		if floor(i_len) == i_len then	drawRect(0, y - 1, x - 2, tile_size, color_secondback) end
 		
 		for j = 0, level.width - 1 do
 			
@@ -521,7 +596,7 @@ local function drawLevel () --Draws level
 				
 				local j_tmp = j /2
 				
-				if floor(j_tmp) == j_tmp then drawRect(x - 1, 0, tile_size, y - 2, Colors.SecondBack) end
+				if floor(j_tmp) == j_tmp then drawRect(x - 1, 0, tile_size, y - 2, color_secondback) end
 				
 			end
 			
@@ -530,48 +605,60 @@ local function drawLevel () --Draws level
 			
 			if Options["animation"]~="off" and tmp2~=1 then
 				
-				drawRect(x,y,square_size,square_size,	Colors.Tile)
+				drawRect(x,y,square_size,square_size,	color_tile)
 				
 				elseif Options["animation"] == "off" and tmp1~=1 then
 				
-				drawRect(x,y,square_size,square_size,	Colors.Tile)
+				drawRect(x,y,square_size,square_size,	color_tile)
 				
 			end
 			
 			if Options["animation"] == "fade" then
 				
 				if tmp3>0 and tmp3<1 then
-					Graphics.drawImage(x, y, cross_tex,Color_new(Color.getR(Colors.Cross),Color.getG(Colors.Cross),Color.getB(Colors.Cross),tmp3*255))
+					Graphics_drawImage(x, y, cross_tex,Color_new(Color_getR(color_cross),Color_getG(color_cross),Color_getB(color_cross),tmp3*255))
 					elseif tmp3>0 then
-					Graphics.drawImage(x, y, cross_tex,Colors.Cross)
+					Graphics_drawImage(x, y, cross_tex,color_cross)
 				end
 				
 				if tmp2>0 and tmp2<1 then
-					Graphics.drawImage(x, y, tile_tex,Color_new(Color.getR(Colors.Square),Color.getG(Colors.Square),Color.getB(Colors.Square),tmp2*255))
+					Graphics_drawImage(x, y, tile_tex,Color_new(Color_getR(color_square),Color_getG(color_square),Color_getB(color_square),tmp2*255))
 					elseif tmp2>0 then
-					Graphics.drawImage(x, y, tile_tex,Colors.Square)
+					Graphics_drawImage(x, y, tile_tex,color_square)
 				end
 				
 				elseif Options["animation"] == "rescale" then
 				
 				if tmp3>0 and tmp3<1 then
-					Graphics.drawImageExtended(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,0,tmp3,tmp3,Colors.Cross)
+					Graphics_dIE(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,0,tmp3,tmp3,color_cross)
 					elseif tmp3>0 then
-					Graphics.drawImage(x, y, cross_tex,Colors.Cross)
+					Graphics_drawImage(x, y, cross_tex,color_cross)
 				end
 				
 				if tmp2>0 and tmp2<1 then
-					Graphics.drawImageExtended(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,0,tmp2,tmp2,Colors.Square)
+					Graphics_dIE(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,0,tmp2,tmp2,color_square)
 					elseif tmp2>0 then
-					Graphics.drawImage(x, y, tile_tex,Colors.Square)
+					Graphics_drawImage(x, y, tile_tex,color_square)
+				end
+				elseif Options["animation"] == "rotating" then
+				
+				if tmp3>0 and tmp3<1 then
+					Graphics_dIE(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,2*pie*tmp3,tmp3,tmp3,color_cross)
+					elseif tmp3>0 then
+					Graphics_drawImage(x, y, cross_tex,color_cross)
 				end
 				
+				if tmp2>0 and tmp2<1 then
+					Graphics_dIE(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,2*pie*tmp2,tmp2,tmp2,color_square)
+					elseif tmp2>0 then
+					Graphics_drawImage(x, y, tile_tex,color_square)
+				end
 				elseif Options["animation"] == "off" then
 				
 				if tmp1 == 1 then
-					Graphics.drawImage(x, y, tile_tex,Colors.Square)
+					Graphics_drawImage(x, y, tile_tex,color_square)
 					elseif tmp1 == -1 then
-					Graphics.drawImage(x, y, cross_tex,Colors.Cross)
+					Graphics_drawImage(x, y, cross_tex,color_cross)
 				end
 				
 			end
@@ -586,7 +673,9 @@ local function drawLevel () --Draws level
 				elseif Options["animation"] == "rescale" then
 				
 				add = dt*0.05
+				elseif Options["animation"] == "rotating" then
 				
+				add = dt*0.04
 			end
 			
 			if Options["animation"]~="off" then
@@ -597,11 +686,11 @@ local function drawLevel () --Draws level
 				if		tmp1 == -1	and tmp3 < 1 then	level.cross[tmp]	= tmp3 + add
 				elseif	tmp1 == 0	and tmp3 > 0 then	level.cross[tmp]	= tmp3 - add	end
 				
-				if		tmp1 == 1	and tmp2 > 1 then	level.square[tmp]	= 1 level.cross[tmp]	= 0
-				elseif	tmp1 == 0	and tmp2 < 0 then	level.square[tmp]	= 0		end
+				if		tmp2 > 1 and tmp1 == 1 then	level.square[tmp]	= 1 level.cross[tmp]	= 0
+				elseif	tmp2 < 0 and tmp1 == 0 then	level.square[tmp]	= 0		end
 				
-				if		tmp1 == -1	and tmp3 > 1 then	level.cross[tmp]	= 1 level.square[tmp]	= 0
-				elseif	tmp1 == 0	and tmp3 < 0 then	level.cross[tmp]	= 0				end
+				if		tmp3 > 1 and tmp1 == -1	then	level.cross[tmp]	= 1 level.square[tmp]	= 0
+				elseif	tmp3 < 0 and tmp1 == 0	then	level.cross[tmp]	= 0				end
 				
 			end
 			
@@ -611,23 +700,23 @@ local function drawLevel () --Draws level
 		
 	end
 	
-	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 4, Colors.Frame)
+	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 4, change_color(newAlpha(Colors.Frame, 255*(1-pause_delta)), pause_delta))
 	
 end
 
 local function drawUpper ()
 	
-	local time = Timer.getTime(gameTimer)
+	local time = Timer_getTime(gameTimer)
 	local	mt = toDigits(time)
-	drawRect(0,35,150,20,Color_new(255,0,0))
 	drawRect(0,0,170,35,black)
+	drawRect(0,35,150,20,change_color(Color_new(255,0,0), pause_delta))
 	FontLib_printRotated(75,45,"Record: "..level.record,0,white)
 	FontLib_printExtended(85,18,mt,2,2,0,white)
 	if mh_rot < pie then
 		mh_rot = mh_rot + dt * pie/60
-		local TwoTwoFive = 255*sin(mh_rot/2)
-		FontLib_printExtended(85,17+18*sin(mh_rot),"+00:0"..(tile_oldAdd)..":00 ",2,2,0,Color.new(255,255,255,255-TwoTwoFive))
-		FontLib_printExtended(start_x+(frame_x+1/2)*tile_size-1,start_y+(frame_y+1/2)*tile_size+1,"+"..(tile_oldAdd).."min",8-8*cos(mh_rot),8-8*cos(mh_rot+pie/6),0,Color.new(0,0,0,255-TwoTwoFive))
+		local TwoTwoFive = 255*(1-sin(mh_rot/2))
+		FontLib_printExtended(85,17+18*sin(mh_rot),"+00:0"..(tile_oldAdd)..":00 ",2,2,0,Color_new(255,255,255,TwoTwoFive))
+		FontLib_printExtended(start_x+(frame_x+1/2)*tile_size-1,start_y+(frame_y+1/2)*tile_size+1,"+"..(tile_oldAdd).."min",8*(1-cos(mh_rot)),8*(1-cos(mh_rot+pie/6)),0,Color_new(0,0,0,TwoTwoFive))
 		elseif mh_rot > pie then
 		mh_rot = pie
 	end
@@ -639,31 +728,32 @@ local function drawNumbers () --Draw side numbers
 	local xU, yL = start_x + half_size, start_y + half_size - 7
 	local yU_start, xL_start = yL - 5, xU - 2
 	local maximum = max(level.width,level.height)
-	local alen, blen, clen, dlen = tile.ULen, tile.LLen
+	local alen, blen, clen, dlen = tile_ULen, tile_LLen
+	local color_sideNumbers = change_color(newAlpha(Colors.SideNumbers, 255*(1-pause_delta)), pause_delta)
 	
 	for i = 0, maximum do
 		
 		local yU, xL = yU_start - 5 , xL_start - 5
 		local a, b = i<=alen, i<=blen
 		
-		if a then clen = #tile.stackU[i] end
+		if a then clen = #tile_stackU[i] end
 		
-		if b then dlen = #tile.stackL[i] end
+		if b then dlen = #tile_stackL[i] end
 		
 		for j = maximum, 0, -1 do
 			
 			if a and j<=clen then
 				
-				local textU = tile.stackU[i][j]
+				local textU = tile_stackU[i][j]
 				yU = yU - 19
-				FontLib_print(xU - len(textU) * 5, yU,textU, Colors.SideNumbers, 3)
+				FontLib_print(xU - len(textU) * 5, yU,textU, color_sideNumbers, 3)
 			end
 			
 			if b and j<=dlen then
 				
-				local textL = tile.stackL[i][j]
+				local textL = tile_stackL[i][j]
 				xL = xL - 19
-				FontLib_print(xL - len(textL) * 5, yL,textL, Colors.SideNumbers, 3)
+				FontLib_print(xL - len(textL) * 5, yL,textL, color_sideNumbers	, 3)
 			end
 			
 		end
@@ -677,7 +767,7 @@ end
 
 local function Controls_frame () --Frame manipulations
 	
-	local time = Timer.getTime(actionTimer)
+	local time = Timer_getTime(actionTimer)
 	
 	if pause ~= lock_time then
 		
@@ -764,7 +854,7 @@ local function Controls_frame () --Frame manipulations
 		
 		if pause == def_pause or time > pause then
 			
-			Timer.reset(actionTimer)
+			Timer_reset(actionTimer)
 			
 			if _up then
 				
@@ -836,7 +926,7 @@ local function Controls_frame () --Frame manipulations
 		
 		if pause < time then
 			
-			Timer.reset(actionTimer)
+			Timer_reset(actionTimer)
 			pause = def_pause
 			
 		end
@@ -907,7 +997,7 @@ local function drawOptionsLevel () -- Draw Color settings screen
 			
 			if j < i then
 				
-				Graphics.drawImage(x, y, cross_tex,Colors.Cross)
+				Graphics_drawImage(x, y, cross_tex,Colors.Cross)
 				
 			end
 			
@@ -925,7 +1015,7 @@ local function drawOptionsLevel () -- Draw Color settings screen
 			
 			if j == i then
 				
-				Graphics.drawImage(x, y, tile_tex,Colors.Square)
+				Graphics_drawImage(x, y, tile_tex,Colors.Square)
 				
 			end
 			
@@ -948,9 +1038,9 @@ local function drawOptionsLevel () -- Draw Color settings screen
 		else
 		
 		local value = Colors[OptionsNowKey]
-		local red = Color.getR(value)
-		local green = Color.getG(value)
-		local blue = Color.getB(value)
+		local red = Color_getR(value)
+		local green = Color_getG(value)
+		local blue = Color_getB(value)
 		drawRectCorn(228,435,200,105,10,black)
 		FontLib_printExtended(328, 453, OptionsNowKey, 2, 2, 0, white)
 		drawRect(258+24*OptionsCLRNow, 480,21,31, Color_new(0,148,255,150))
@@ -978,7 +1068,7 @@ local function drawOptionsLevel () -- Draw Color settings screen
 		end
 		
 		FontLib_print(665,y,key,white)
-		FontLib_print(865,y,"0x"..rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)}),white)
+		FontLib_print(865,y,"0x"..rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)}),white)
 		y = y + 16
 		
 	end
@@ -988,6 +1078,9 @@ local function drawOptionsLevel () -- Draw Color settings screen
 	y = y + 16
 	FontLib_print(665, y,"Animation",white)
 	FontLib_print(889-4*len(Animations[Animations.now]), y, "<"..Animations[Animations.now]..">", white)
+	y = y + 16
+	FontLib_print(665, y,"fpsCounter",white)
+	FontLib_print(889-4*len(Options["fps"]), y, "<"..Options["fps"]..">", white)
 	
 end
 
@@ -995,40 +1088,57 @@ local function Controls_Options() -- Controls in settings screen
 	
 	local _up, _down, _left, _right, _cross, _circle = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN), Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT), Controls_click(SCE_CTRL_CROSS), Controls_click(SCE_CTRL_CIRCLE)
 	local _up2, _down2 = Controls_check(pad, SCE_CTRL_UP), Controls_check(pad, SCE_CTRL_DOWN)
-	local time = Timer.getTime(actionTimer)
+	local time = Timer_getTime(actionTimer)
 	
 	if OptionsCLRNow == 0 then
 		
-			if _up2 then
-				if opt_pause==optdelay_pause or time > opt_pause then
-				Timer.reset(actionTimer)
+		if _up2 then
+		
+			if opt_pause==optdelay_pause or time > opt_pause then
+			
+				Timer_reset(actionTimer)
 				OptionsNow = OptionsNow - 1 
 				
-				if OptionsNow<1 then OptionsNow = table.len(Colors) + 2  end
+				if OptionsNow<1 then OptionsNow = table.len(Colors) + 3  end
+				
 				if _up2 or _down2 then
+				
 					opt_pause = optdelay_pause2
+					
 				end
-				end
-				if not (_up2 or _down2) then
+				
+			end
+			
+			if not (_up2 or _down2) then
+			
 				opt_pause = optdelay_pause
-				end
 				
+			end
+			
 			elseif _down2 then
-				
-				if opt_pause==optdelay_pause or time > opt_pause then
-				Timer.reset(actionTimer)
+			
+			if opt_pause==optdelay_pause or time > opt_pause then
+			
+				Timer_reset(actionTimer)
 				OptionsNow = OptionsNow + 1
 				
-				if OptionsNow > table.len(Colors) + 2 then OptionsNow = 1 end
+				if OptionsNow > table.len(Colors) + 3 then OptionsNow = 1 end
+				
 				if _up2 or _down2 then
+				
 					opt_pause = optdelay_pause2
+					
 				end
-				end
-				if not (_up2 or _down2) then
+				
+			end
+			
+			if not (_up2 or _down2) then
+			
 				opt_pause = optdelay_pause
-				end
-						
-		elseif _cross and OptionsNow < table.len(Colors) + 1 then
+				
+			end
+			
+			elseif _cross and OptionsNow < table.len(Colors) + 1 then
 			
 			OptionsCLRNow = 1
 			Old_color = Colors[OptionsNowKey]
@@ -1054,11 +1164,11 @@ local function Controls_Options() -- Controls in settings screen
 				
 				if themes.now == #themes then
 					
-					AcceptTheme(dir.."custom.thm")
+					AcceptTheme(dir.."custom.thm", Colors)
 					
 					else
 					
-					AcceptTheme(themesDir..themes[themes.now]..".thm")
+					AcceptTheme(themesDir..themes[themes.now]..".thm", Colors)
 					
 				end
 				
@@ -1084,6 +1194,13 @@ local function Controls_Options() -- Controls in settings screen
 				Options["animation"] = Animations[Animations.now]
 				updateCfg(configDir, Options)
 				
+				elseif OptionsNow == table_len + 3 then
+				if _left or _right then
+					
+					if Options["fps"] == "on" then Options["fps"] = "off" else Options["fps"] = "on" end
+					
+				end
+				updateCfg(configDir, Options)
 			end
 		end
 		
@@ -1093,12 +1210,12 @@ local function Controls_Options() -- Controls in settings screen
 		
 		if _up then
 			
-			local hex = rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)})
+			local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
 			Colors[OptionsNowKey] = Color_new(hex2rgb(sub(hex,0,OptionsCLRNow-1)..OptionsColorsNext[sub(hex,OptionsCLRNow,OptionsCLRNow)]..sub(hex,OptionsCLRNow+1,len(hex))))
 			
 			elseif _down then
 			
-			local hex = rgb2hex({Color.getR(value),Color.getG(value),Color.getB(value)})
+			local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
 			Colors[OptionsNowKey] = Color_new(hex2rgb(sub(hex,0,OptionsCLRNow-1)..OptionsColorsPrev[sub(hex,OptionsCLRNow,OptionsCLRNow)]..sub(hex,OptionsCLRNow+1,len(hex))))
 			
 			elseif _left then
@@ -1146,8 +1263,6 @@ local function stepOne ()
 	
 end
 
-local steps = {"Choosing size"}
-
 local function progressBar ()
 	
 	local text = "Step "..step.."/"..#steps.." - "..steps[step]
@@ -1181,30 +1296,53 @@ local function progressBar ()
 	end
 end
 
-local function UpdateNewLevel()
+local function UpdateNewLevel ()
 	
 	newlevel.width = 5
 	newlevel.height = 5
 	
 end
 
-Update (levelDir.."level1.pcl") --Updating variables for new level
+level = openPCL (levelDir.."level1.pcl") -- Loads *.pcl file
+updateAllData ()
+Update () --Updating variables for new level
 state = 3
 step = 1
 UpdateNewLevel ()
+local fps = 0
 
 while true do
 	
 	dt = newTime / 8
-	Timer.reset (DeltaTimer)
+	if Options["fps"]=="on" then
+		if Timer_getTime(FPSTimer)>1000 then
+		
+			Timer_reset(FPSTimer)
+			fps = floor(1000 / newTime)
+		
+		end
+	end
+	Timer_reset (DeltaTimer)
 	Graphics.initBlend ()
 	pad = Controls.read ()
+	
 	if state == 1 then
 		
-		Screen.clear (Colors.Background)
+		Screen.clear (change_color(Colors.Background, pause_delta))
 		drawLevel ()
-		drawNumbers ()
+		
+		if pause_delta ~= 1 then
+		
+			drawNumbers ()
+			
+			elseif pause_delta==1 then
+			
+			Rotations ()
+		
+		end
+		
 		drawUpper ()
+		pause_screen ()
 		
 		elseif state == 2 then
 		
@@ -1223,12 +1361,19 @@ while true do
 		progressBar ()
 		
 	end
+	if Options["fps"]=="on" then
+		drawRect(930,0,30,20,black)
+		FontLib_printRotated(945,10,fps,0,white)
+	end
 	Graphics.termBlend ()
 	
 	if state == 1 then
 		
+		if not pause_status then
+		
 		Controls_frame ()
-		--touchScreen ()
+		
+		end
 		
 		elseif state == 2 then
 		
@@ -1249,9 +1394,12 @@ while true do
 		
 	end
 	
-	Screen.waitVblankStart ()
+	if pause_delta==0 or pause_delta==1 then
+		Screen.waitVblankStart ()
+	end
+	
 	Screen.flip ()
 	oldpad = pad
-	newTime = Timer.getTime (DeltaTimer)
-	
+	newTime = Timer_getTime (DeltaTimer)
+		
 end
