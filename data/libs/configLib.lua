@@ -33,7 +33,11 @@ function readCfg (_path, _table) --loads cfg file to Options table
 				elseif string.byte(str) == 10 then
 				
 				k = true
-				_table[key] = value 
+				if tonumber(value)~=nil then
+					_table[key] = tonumber(value)
+				else
+					_table[key] = value
+				end
 				key = ''
 				value = ''
 				

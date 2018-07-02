@@ -47,7 +47,8 @@ local Options = { -- Default options
 	
 	["nowtheme"] = "default",
 	["animation"] = "fade",
-	["fps"] = "on",
+	["fps"] = "off",
+	["brightness"] = 5
 	
 }
 
@@ -128,14 +129,14 @@ local tile_oldAdd, tile_nowAdd = 1, 1
 local mh_rot = pie
 local level = {}
 local steps = {"Choosing size"}
-local rot_pause, rot_pause_max, rot3 = 0, 16*pie
+local rot_pause, rot_pause_max, rot_options, rot_options_max, rot_yes_or_no, rot_yes_or_no_max  = 0, 16*pie, 0, 16*pie, 0, 16*pie
 local numbers_dim = 0
-local function Rotations ()
 
-	rot_pause = rot_pause + pie/60 * dt
+local function ZEWARDO ()
 	
-	if rot_pause > rot_pause_max then rot_pause = rot_pause - rot_pause_max end
-
+	Timer_reset(actionTimer)
+	Timer_reset(gameTimer)
+	
 end
 
 local function Controls_click (BUTTON) -- On click action
@@ -165,15 +166,15 @@ local function updateAllData ()
 			themes[#themes+1] = sub(scan_themes[i].name,1,len(scan_themes[i].name) - 4)
 			
 		end
-			
+		
 	end
-
+	
 	themes[#themes + 1] = "custom" -- Adds custom theme to system themes
 	
 	readCfg (configDir, Options) -- Loads cfg file
 	
 	if Options["nowtheme"] == "custom" then -- Load theme from last save
-	
+		
 		if System.doesFileExist(dir.."custom.thm") then
 			
 			AcceptTheme(dir.."custom.thm", Colors)
@@ -184,9 +185,9 @@ local function updateAllData ()
 			AcceptTheme(themesDir.."default.thm", Colors)
 			
 		end
-	
-	else
-	
+		
+		else
+		
 		if System.doesFileExist(themesDir..Options["nowtheme"]..".thm") then
 			
 			AcceptTheme(themesDir..Options["nowtheme"]..".thm", Colors)
@@ -197,9 +198,9 @@ local function updateAllData ()
 			AcceptTheme(themesDir.."default.thm", Colors)
 			
 		end
-	
+		
 	end
-
+	
 	for i=1, #themes do
 		
 		if themes[i] == Options["nowtheme"] then
@@ -210,7 +211,7 @@ local function updateAllData ()
 		end
 		
 	end
-
+	
 	for i=1, #Animations do 
 		
 		if Animations[i] == Options["animation"] then
@@ -303,118 +304,6 @@ local function drawEmptyRect (x, y, w, h, t, c) -- drawRect outline x, y, width,
 	drawRect(x + w - t, y, t, h, c)
 	drawRect(x + t, y + h - t, w - 2 * t, t, c)
 	
-end
-
-local pause_delta, pause_status, pause_gravity, pause_buttons, pause_now, pause_y_buttons, pause_x_buttons = 0, false, 0, {"Continue", "Options", "Exit"}, 0, 340, 50
-
-local function pause_screen ()
-	
-	local delta = pause_delta
-	
-	if (Controls_click(SCE_CTRL_START) or pause_status and (Controls_click(SCE_CTRL_CIRCLE) or Controls_click(SCE_CTRL_CROSS) and pause_buttons[pause_now] == "Continue")) and (delta==1 or delta==0) then
-	
-		pause_now = 0
-		dontPress = true
-		pause_status = not pause_status
-		
-		if pause_status and Timer_isPlaying(gameTimer) then
-			
-			Timer_pause(gameTimer)
-			
-		elseif not (pause_status or Timer_isPlaying(gameTimer)) then
-		
-			Timer_resume(gameTimer)
-			
-		end
-		
-	end
-	
-	if pause_status and delta + pause_gravity < 1 then
-	
-		pause_delta = pause_delta + pause_gravity
-		pause_gravity = pause_gravity + 0.005*dt
-		rot_pause = 0
-		
-		elseif pause_status then
-		
-		pause_delta = 1
-		pause_gravity = 0
-		
-	elseif not pause_status and delta - pause_gravity > 0 then
-	
-		pause_delta = pause_delta - pause_gravity
-		pause_gravity = pause_gravity + 0.005*dt
-		
-	elseif not pause_status then
-	
-		pause_delta = 0
-		pause_gravity = 0
-		
-	end
-	
-	if pause_delta > 0 then
-	
-		drawRect(0,0,960,544,Color_new(0, 0, 0, 100*delta))
-		local y = 544 - (544 -  pause_y_buttons)*pause_delta
-		local x = pause_x_buttons
-		local _up, _down = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN)
-		
-		if _down then
-		
-			pause_now = pause_now + 1
-			if pause_now > #pause_buttons then	pause_now = 1	end
-			
-		elseif _up then
-		
-			pause_now = pause_now - 1
-			if pause_now < 1 then	pause_now = #pause_buttons	end
-			
-		end
-		
-		FontLib_printExtended(145, 100*pause_delta+5, "Pause", 5, 5, pie/27*sin(rot_pause/2), Color_new(0,0,0,100*pause_delta) )
-		FontLib_printExtended(150, 100*pause_delta, "Pause", 5, 5, pie/27*sin(rot_pause/2), Color_new(255,255,255,255*pause_delta) )
-		
-		for i = 1, #pause_buttons do
-			
-			local size = i + 10
-			local color = Color_new(255,255,255,255*delta)
-			pause_buttons[size] = pause_buttons[size] or 4
-			
-			if pause_now ~= i then
-				
-				if pause_buttons[size]>4 then
-					
-					pause_buttons[size] = pause_buttons[size] - 0.1*dt
-					
-					elseif pause_buttons[size]<4 then
-					
-					pause_buttons[size] = 4
-				
-				end				
-			
-			else
-				
-				if pause_buttons[size]<5 then
-					
-					pause_buttons[size] = pause_buttons[size] + 0.1*dt
-					
-					elseif pause_buttons[size]>5 then
-					
-					pause_buttons[size] = 5
-				
-				end
-				
-				color = Color_new(255,216,0,255*delta)
-			
-			end
-			
-			FontLib_printScaled (x + 10*(pause_buttons[size] - 4)-4, y+4, pause_buttons[i],pause_buttons[size],pause_buttons[size], shadow)
-			FontLib_printScaled (x + 10*(pause_buttons[size] - 4), y, pause_buttons[i],pause_buttons[size],pause_buttons[size], color)
-			y = y + 14*pause_buttons[size]
-		
-		end
-		
-	end
 end
 
 local function minus ()
@@ -530,6 +419,7 @@ local function Update () -- Updating variables for new level
 	level.nowBlocks = 0
 	level.allBlocks = 0
 	tile_oldAdd, tile_nowAdd = 1, 1
+	
 	local tmp = 0
 	
 	for i = 1, level.height do
@@ -555,7 +445,457 @@ local function Update () -- Updating variables for new level
 	x5lines = (ceil(level.width/5) - 1) * priceXY5
 	y5lines = (ceil(level.height/5) - 1) * priceXY5
 	updateStacks()
+	ZEWARDO ()
+end
+
+local pause_delta, pause_status, pause_gravity, pause_buttons, pause_now, pause_y_buttons, pause_x_buttons = 0, false, 0, {"Continue", "Options", "Exit"}, 0, 340, 50
+
+local yes_or_no_delta, yes_or_no_status, yes_or_no_gravity, yes_or_no_now, yes_or_no_buttons = 0, false, 0, 0,{"Yes", "No"}
+
+local options_delta, options_status, options_gravity, options_buttons, options_now, options_y_buttons, options_x_buttons = 0, false, 0, {"Theme","Brightness","Animation","FPS","Reset saves","Back"}, 0, 250, 480
+
+local function Rotations ()
 	
+	if yes_or_no_status then
+		
+		rot_yes_or_no = rot_yes_or_no + pie/60 * dt
+		if rot_yes_or_no > rot_yes_or_no_max then rot_yes_or_no = rot_yes_or_no - rot_yes_or_no_max end
+	else
+	if not options_status and pause_status then
+		
+		rot_pause = rot_pause + pie/60 * dt
+		if rot_pause > rot_pause_max then rot_pause = rot_pause - rot_pause_max end
+		
+		elseif options_status and pause_status then
+		
+		rot_options = rot_options + pie/60 * dt
+		if rot_options > rot_options_max then rot_options = rot_options - rot_options_max end
+		
+	end
+	end
+	
+end
+
+local function pause_screen ()
+	
+	local delta = pause_delta
+	
+	if not options_status then
+		
+		if (Controls_click(SCE_CTRL_START) or pause_status and (Controls_click(SCE_CTRL_CIRCLE) or Controls_click(SCE_CTRL_CROSS) and pause_buttons[pause_now] == "Continue")) and (delta==1 or delta==0) then
+			
+			pause_now = 0
+			dontPress = true
+			pause_status = not pause_status
+			
+			if pause_status and Timer_isPlaying(gameTimer) then
+				
+				Timer_pause(gameTimer)
+				
+				elseif not (pause_status or Timer_isPlaying(gameTimer)) then
+				
+				Timer_resume(gameTimer)
+				
+			end
+			
+		end
+		
+	end
+	
+	if pause_status then
+		
+		if delta+pause_gravity<1 then
+			
+			pause_delta = pause_delta + pause_gravity
+			pause_gravity = pause_gravity + 0.005*dt
+			rot_pause = 0
+			
+			else
+			
+			pause_delta = 1
+			pause_gravity = 0
+			
+		end
+		
+		else
+		
+		if delta-pause_gravity>0 then
+			
+			pause_delta = pause_delta - pause_gravity
+			pause_gravity = pause_gravity + 0.005*dt
+			
+			else
+			
+			pause_delta = 0
+			pause_gravity = 0
+			
+		end
+	end
+	
+	if pause_delta > 0 then
+		
+		drawRect(0,0,960,544,Color_new(0, 0, 0, 100*delta))
+		local y = 544 - (544 -  pause_y_buttons)*pause_delta
+		local x = pause_x_buttons
+		
+		if not options_status then
+			
+			local _up, _down = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN)
+			
+			if _down then
+				
+				pause_now = pause_now + 1
+				if pause_now > #pause_buttons then	pause_now = 1	end
+				
+				elseif _up then
+				
+				pause_now = pause_now - 1
+				if pause_now < 1 then	pause_now = #pause_buttons	end
+				
+			end
+			
+		end
+		--FontLib_printExtended(145, 100*pause_delta+5 - 100*options_delta, "Pause", 5, 5, pie/90*sin(rot_pause/2), Color_new(0,0,0,100*pause_delta - 100*options_delta) )
+		FontLib_printExtended(150, 100*pause_delta- 100*options_delta, "Pause", 5, 5, pie/90*sin(rot_pause/2), Color_new(255,255,255,255*pause_delta - 255*options_delta) )
+		
+		for i = 1, #pause_buttons do
+			
+			local size = i + 10
+			local color = Color_new(255,255,255,255*delta)
+			pause_buttons[size] = pause_buttons[size] or 3
+			
+			if pause_now ~= i then
+				
+				if pause_buttons[size]>3 then
+					
+					pause_buttons[size] = pause_buttons[size] - 0.1*dt
+					
+					elseif pause_buttons[size]<3 then
+					
+					pause_buttons[size] = 3
+					
+				end				
+				
+				else
+				
+				if pause_buttons[size]<4 then
+					
+					pause_buttons[size] = pause_buttons[size] + 0.1*dt
+					
+					elseif pause_buttons[size]>4 then
+					
+					pause_buttons[size] = 4
+					
+				end
+				
+				color = change_color(Color_new(255,216,0,255*delta), options_delta)
+				
+			end
+			
+			--FontLib_printScaled (x + 10*(pause_buttons[size] - 4)-4, y+4, pause_buttons[i],pause_buttons[size],pause_buttons[size], shadow)
+			FontLib_printScaled (x + 10*(pause_buttons[size] - 4), y, pause_buttons[i],pause_buttons[size],pause_buttons[size], color)
+			y = y + 14*pause_buttons[size]
+			
+		end
+		
+	end
+end
+
+local function options_screen()
+	
+	local delta = options_delta
+	
+	if not yes_or_no_status then
+	
+		if pause_delta and not options_status and Controls_click(SCE_CTRL_CROSS) and pause_buttons[pause_now]=="Options" then
+			
+			options_status = true
+			
+		end
+		
+		if pause_delta and options_status and Controls_click(SCE_CTRL_CIRCLE) or pause_delta and options_status and options_buttons[options_now] == "Back" and Controls_click(SCE_CTRL_CROSS) then
+			
+			options_now = 0
+			options_status = false
+			
+		end
+	end
+	
+	if options_status then
+		
+		if delta + options_gravity < 1 then
+			
+			options_delta = options_delta + options_gravity
+			options_gravity = options_gravity + 0.005*dt
+			rot_options = 0
+			
+			else
+			
+			options_delta = 1
+			options_gravity = 0
+			
+		end
+		
+		else
+		
+		if not options_status and delta - options_gravity > 0 then
+			
+			options_delta = options_delta - options_gravity
+			options_gravity = options_gravity + 0.005*dt
+			
+			else
+			
+			options_delta = 0
+			options_gravity = 0
+		end
+		
+	end
+	
+	if options_delta > 0 then
+		
+		drawRect(0,0,960,544,Color_new(0, 0, 0, 100*delta))
+		local y = 544 - (544 -  options_y_buttons)*options_delta
+		local x = options_x_buttons
+		--FontLib_printExtended(options_x_buttons, 100*options_delta+5-100*yes_or_no_delta, "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(0,0,0,100*options_delta-100*yes_or_no_delta) )
+		FontLib_printExtended(options_x_buttons, 100*options_delta-100*yes_or_no_delta, "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(255,255,255,255*options_delta-255*yes_or_no_delta) )
+		
+		if options_status and not yes_or_no_status then
+			
+			local _up, _down = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN)
+			
+			if _down then
+				
+				options_now = options_now + 1
+				if options_now > #options_buttons then	options_now = 1	end
+				
+				elseif _up then
+				
+				options_now = options_now - 1
+				if options_now < 1 then	options_now = #options_buttons	end
+				
+			end
+		end
+		
+		local _left,_right, _cross = Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT), Controls_click(SCE_CTRL_CROSS)
+		for i = 1, #options_buttons do
+			
+			local size = i + 16
+			local color = Color_new(255,255,255,255*delta)
+			local rot = 0
+			options_buttons[size] = options_buttons[size] or 3
+			local text = options_buttons[i]
+			
+			if options_now ~= i then
+				
+				if options_buttons[size]>3 then
+					
+					options_buttons[size] = options_buttons[size] - 0.1*dt
+					
+					elseif options_buttons[size]<3 then
+					
+					options_buttons[size] = 3
+					
+				end				
+				
+				else
+				
+				if options_buttons[size]<4 then
+					
+					options_buttons[size] = options_buttons[size] + 0.1*dt
+					
+					elseif options_buttons[size]>4 then
+					
+					options_buttons[size] = 4
+					
+				end
+				
+				color = change_color(Color_new(255,216,0,255*delta), yes_or_no_delta)
+				rot = pie/60*sin(rot_options)
+				
+				if _left or _right or _cross then
+					
+					if text == "FPS" then
+						
+						if Options["fps"] == "on" then Options["fps"] = "off" else Options["fps"] = "on" end
+						updateCfg(configDir, Options)
+						
+						elseif text == "Animation" then
+						
+						if _left then
+							
+							Animations.now = Animations.now - 1
+							
+							if Animations.now<1 then Animations.now = #Animations end
+							
+							Options["animation"] = Animations[Animations.now]
+							updateCfg(configDir, Options)
+							
+							elseif _right then
+							
+							Animations.now = Animations.now + 1
+							
+							if Animations.now>#Animations then Animations.now = 1 end
+							
+							Options["animation"] = Animations[Animations.now]
+							updateCfg(configDir, Options)
+							
+						end
+						
+						elseif text == "Theme" then
+						
+						if _cross then
+							dontPress=true
+							state = 2
+						end
+						
+						elseif text == "Brightness" then
+						
+						if _left then
+							if Options["brightness"] > 1 then 
+								Options["brightness"] = Options["brightness"] - 1 
+								updateCfg(configDir, Options)
+							end
+							
+						elseif _right then
+							if Options["brightness"] < 5 then 
+								Options["brightness"] = Options["brightness"] + 1
+								updateCfg(configDir, Options)
+							end
+						
+						end
+						elseif text == "Reset saves" then
+							
+							if _cross then
+
+								if yes_or_no_status == true then
+									if yes_or_no_now~=0 then
+									yes_or_no_status = false
+									if yes_or_no_now == 1 then
+										System.deleteFile(dbDir)
+										Update ()
+									end
+									yes_or_no_now = 0
+									else
+									yes_or_no_now = 1
+									end
+									
+									else
+									yes_or_no_status = true
+									
+								end
+							
+							end
+					end
+				
+				end
+				
+			end
+			
+			if text == "FPS" then
+				text = "FPS <"..Options["fps"]..">"
+				elseif text=="Animation" then
+				text = "Animation <"..Options["animation"]..">"
+				elseif text=="Brightness" then
+				text = text.." <"
+				for i=1, 5 do
+					if i <= Options["brightness"] then
+						text = text.."^"
+						else
+						text = text.." "
+					end
+				end
+				text = text..">"
+			end
+			
+			--FontLib_printExtended (x-4, y+4, text,options_buttons[size],options_buttons[size],rot, shadow)
+			FontLib_printExtended (x, y, text,options_buttons[size],options_buttons[size],rot, color)
+			y = y + 14*options_buttons[size]
+			
+		end
+		
+	end
+	
+end
+
+local function yes_or_no_screen()
+	local delta = yes_or_no_delta
+	if yes_or_no_status then
+		
+		if Controls_click(SCE_CTRL_CIRCLE) then yes_or_no_status = false yes_or_no_now = 0 end 
+		
+		if delta + yes_or_no_gravity < 1 then
+			
+			yes_or_no_delta = yes_or_no_delta + yes_or_no_gravity
+			yes_or_no_gravity = yes_or_no_gravity + 0.005*dt
+			rot_yes_or_no = 0
+			
+			else
+			
+			yes_or_no_delta = 1
+			yes_or_no_gravity = 0
+			
+		end
+		
+		else
+		
+		if not yes_or_no_status and delta - yes_or_no_gravity > 0 then
+			
+			yes_or_no_delta = yes_or_no_delta - yes_or_no_gravity
+			yes_or_no_gravity = yes_or_no_gravity + 0.005*dt
+			
+			else
+			
+			yes_or_no_delta = 0
+			yes_or_no_gravity = 0
+		end
+		
+	end
+	if delta>0 then
+		drawRect(0,0,960,544,Color_new(0, 0, 0, 100*delta))
+		--FontLib_printExtended(480, 100*yes_or_no_delta+5, "Are you sure?", 5, 5, pie/90*sin(rot_yes_or_no/2), Color_new(0,0,0,100*yes_or_no_delta) )
+		FontLib_printExtended(480, 100*yes_or_no_delta, "Are you sure?", 5, 5, pie/90*sin(rot_yes_or_no/2), Color_new(255,255,255,255*yes_or_no_delta) )
+		local _left,_right, _cross = Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT), Controls_click(SCE_CTRL_CROSS)
+		if _left or _right then
+			if _left then yes_or_no_now = 1 else yes_or_no_now = 2 end
+		end
+		local x = 240
+		for i=1, #yes_or_no_buttons do
+			local size = i + 16
+			local color = Color_new(255,255,255,255*delta)
+			local rot = 0
+			yes_or_no_buttons[size] = yes_or_no_buttons[size] or 3
+			if yes_or_no_now ~= i then
+				
+				if yes_or_no_buttons[size]>3 then
+					
+					yes_or_no_buttons[size] = yes_or_no_buttons[size] - 0.1*dt
+					
+					elseif yes_or_no_buttons[size]<3 then
+					
+					yes_or_no_buttons[size] = 3
+					
+				end				
+				
+				else
+				
+				if yes_or_no_buttons[size]<4 then
+					
+					yes_or_no_buttons[size] = yes_or_no_buttons[size] + 0.1*dt
+					
+					elseif yes_or_no_buttons[size]>4 then
+					
+					yes_or_no_buttons[size] = 4
+					
+				end
+				
+				color = Color_new(255,216,0,255*delta)
+				rot = pie/60*sin(rot_yes_or_no)
+					
+			end
+			FontLib_printExtended(x, 544-100*yes_or_no_delta, yes_or_no_buttons[i], yes_or_no_buttons[size], yes_or_no_buttons[size], rot, color )
+			x = x + 480
+		end
+	end
 end
 
 local function drawLevel () --Draws level
@@ -1058,6 +1398,7 @@ local function drawOptionsLevel () -- Draw Color settings screen
 	end
 	
 	local y = 20
+	local tmp = 1
 	
 	for key, value in pairs(Colors) do
 		
@@ -1075,13 +1416,6 @@ local function drawOptionsLevel () -- Draw Color settings screen
 	
 	FontLib_print(665,y,"Presets",white)
 	FontLib_print(889-4*len(themes[themes.now]), y, "<"..themes[themes.now]..">", white)
-	y = y + 16
-	FontLib_print(665, y,"Animation",white)
-	FontLib_print(889-4*len(Animations[Animations.now]), y, "<"..Animations[Animations.now]..">", white)
-	y = y + 16
-	FontLib_print(665, y,"fpsCounter",white)
-	FontLib_print(889-4*len(Options["fps"]), y, "<"..Options["fps"]..">", white)
-	
 end
 
 local function Controls_Options() -- Controls in settings screen
@@ -1089,20 +1423,20 @@ local function Controls_Options() -- Controls in settings screen
 	local _up, _down, _left, _right, _cross, _circle = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN), Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT), Controls_click(SCE_CTRL_CROSS), Controls_click(SCE_CTRL_CIRCLE)
 	local _up2, _down2 = Controls_check(pad, SCE_CTRL_UP), Controls_check(pad, SCE_CTRL_DOWN)
 	local time = Timer_getTime(actionTimer)
-	
+	if not dontPress then
 	if OptionsCLRNow == 0 then
 		
 		if _up2 then
-		
-			if opt_pause==optdelay_pause or time > opt_pause then
 			
+			if opt_pause==optdelay_pause or time > opt_pause then
+				
 				Timer_reset(actionTimer)
 				OptionsNow = OptionsNow - 1 
 				
-				if OptionsNow<1 then OptionsNow = table.len(Colors) + 3  end
+				if OptionsNow<1 then OptionsNow = table.len(Colors) + 1 end
 				
 				if _up2 or _down2 then
-				
+					
 					opt_pause = optdelay_pause2
 					
 				end
@@ -1110,7 +1444,7 @@ local function Controls_Options() -- Controls in settings screen
 			end
 			
 			if not (_up2 or _down2) then
-			
+				
 				opt_pause = optdelay_pause
 				
 			end
@@ -1118,14 +1452,14 @@ local function Controls_Options() -- Controls in settings screen
 			elseif _down2 then
 			
 			if opt_pause==optdelay_pause or time > opt_pause then
-			
+				
 				Timer_reset(actionTimer)
 				OptionsNow = OptionsNow + 1
 				
-				if OptionsNow > table.len(Colors) + 3 then OptionsNow = 1 end
+				if OptionsNow > table.len(Colors) + 1 then OptionsNow = 1 end
 				
 				if _up2 or _down2 then
-				
+					
 					opt_pause = optdelay_pause2
 					
 				end
@@ -1133,7 +1467,7 @@ local function Controls_Options() -- Controls in settings screen
 			end
 			
 			if not (_up2 or _down2) then
-			
+				
 				opt_pause = optdelay_pause
 				
 			end
@@ -1175,32 +1509,6 @@ local function Controls_Options() -- Controls in settings screen
 				Options["nowtheme"] = themes[themes.now]
 				updateCfg(configDir, Options)
 				
-				elseif OptionsNow == table_len + 2 then
-				
-				if _left then
-					
-					Animations.now = Animations.now - 1
-					
-					if Animations.now<1 then Animations.now = #Animations end
-					
-					elseif _right then
-					
-					Animations.now = Animations.now + 1
-					
-					if Animations.now>#Animations then Animations.now = 1 end
-					
-				end
-				
-				Options["animation"] = Animations[Animations.now]
-				updateCfg(configDir, Options)
-				
-				elseif OptionsNow == table_len + 3 then
-				if _left or _right then
-					
-					if Options["fps"] == "on" then Options["fps"] = "off" else Options["fps"] = "on" end
-					
-				end
-				updateCfg(configDir, Options)
 			end
 		end
 		
@@ -1253,7 +1561,9 @@ local function Controls_Options() -- Controls in settings screen
 		end
 		
 	end
-	
+	else
+		if pad==0 then dontPress = false end
+	end
 end
 
 local function stepOne ()
@@ -1316,10 +1626,10 @@ while true do
 	dt = newTime / 8
 	if Options["fps"]=="on" then
 		if Timer_getTime(FPSTimer)>1000 then
-		
+			
 			Timer_reset(FPSTimer)
 			fps = floor(1000 / newTime)
-		
+			
 		end
 	end
 	Timer_reset (DeltaTimer)
@@ -1332,17 +1642,21 @@ while true do
 		drawLevel ()
 		
 		if pause_delta ~= 1 then
-		
+			
 			drawNumbers ()
 			
 			elseif pause_delta==1 then
 			
 			Rotations ()
-		
+			
 		end
 		
 		drawUpper ()
 		pause_screen ()
+		if pause_delta > 0 then
+			options_screen ()
+		end
+		yes_or_no_screen ()
 		
 		elseif state == 2 then
 		
@@ -1365,14 +1679,15 @@ while true do
 		drawRect(930,0,30,20,black)
 		FontLib_printRotated(945,10,fps,0,white)
 	end
+	drawRect(0,0,960,544,Color_new(0,0,0,150-30*Options["brightness"]))
 	Graphics.termBlend ()
 	
 	if state == 1 then
 		
 		if not pause_status then
-		
-		Controls_frame ()
-		
+			
+			Controls_frame ()
+			
 		end
 		
 		elseif state == 2 then
@@ -1401,5 +1716,5 @@ while true do
 	Screen.flip ()
 	oldpad = pad
 	newTime = Timer_getTime (DeltaTimer)
-		
+	
 end
