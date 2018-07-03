@@ -46,22 +46,65 @@ local Animations = {
 local Options = { -- Default options
 	
 	["nowtheme"] = "default",
-	["animation"] = "fade",
+	["animation"] = "rotating",
 	["fps"] = "off",
 	["brightness"] = 5
 	
 }
+
+local ColorsTable = {}
 
 appDir = "ux0:data/BL/" --Dir for app0
 dataDir = appDir.."data/" --Dir for data in app0
 libDir = dataDir.."libs/" --Dir for libs in app0
 levelDir = dataDir.."lvls/" --Dir for levels in app0
 themesDir = dataDir.."thms/" --Dir for levels in app0
-dir = "ux0:data/BL/" --Dir for ux0:data/PiCrest
+dir = "ux0:data/PiCrest/" --Dir for ux0:data/PiCrest
 configDir = dir.."config.ini"
 clevelDir = dir.."levels/" --Dir for custom levels
 dbDir = dir.."save.db"
 
+for i = 1, #Libs do -- Loads all libs
+	
+	dofile(libDir..Libs[i]..".lua")
+	
+end
+
+local hex2rgb, rgb2hex = hex2rgb, rgb2hex
+local openPCL, updatePCL, createPCL, getRNPCL = PCL_Lib.open, PCL_Lib.update, PCL_Lib.create, PCL_Lib.getRN
+local readCfg, updateCfg = readCfg, updateCfg
+local AcceptTheme, MakeTheme = AcceptTheme, MakeTheme
+
+do 
+	local i = 1
+	for key, value in pairs(Colors) do
+		
+		ColorsTable[i] = key
+		i = i + 1
+		
+	end
+end
+
+function table.len (t) -- returns table length 
+	
+	local a = 0
+	
+	for k, v in pairs(t) do
+		
+		a = a + 1
+		
+	end
+	
+	return a
+	
+end
+
+if not System.doesDirExist (dir) then
+	System.createDirectory (dir)
+end
+if not System.doesDirExist (clevelDir) then
+	System.createDirectory (clevelDir)
+end
 if not System.doesFileExist (dir.."custom.thm") then -- Creates custom.thm file, if it isn't exists
 	
 	MakeTheme(dir.."custom.thm", Colors)
@@ -80,32 +123,8 @@ Database.close(db)
 db = Database.open(dbDir)
 database_m = Database.execQuery(db, "SELECT ms FROM [REC];")
 Database.close(db)
-
-for i = 1, #Libs do -- Loads all libs
-	
-	dofile(libDir..Libs[i]..".lua")
-	
-end
-
-function table.len (t) -- returns table length 
-	
-	local a = 0
-	
-	for k, v in pairs(t) do
-		
-		a = a + 1
-		
-	end
-	
-	return a
-	
-end
-
+local tex_but = Graphics.loadImage(dataDir.."button.png")
 local pie = math.pi
-local hex2rgb, rgb2hex = hex2rgb, rgb2hex
-local openPCL, updatePCL, createPCL, getRNPCL = PCL_Lib.open, PCL_Lib.update, PCL_Lib.create, PCL_Lib.getRN
-local readCfg, updateCfg = readCfg, updateCfg
-local AcceptTheme, MakeTheme = AcceptTheme, MakeTheme
 local tile_tex, cross_tex = Graphics.loadImage(dataDir.."tile.png"),Graphics.loadImage(dataDir.."cross.png")
 local tile_stackU, tile_stackL = {}, {}
 local DeltaTimer, newTime, actionTimer, gameTimer = Timer_new(), 0, Timer_new(), Timer_new()
@@ -119,7 +138,6 @@ local dontPress = false
 local lock_time, def_pause,optdelay_pause,optdelay_pause2, lil_pause = 1000, 200,300,150, 60
 local pause, opt_pause = def_pause, optdelay_pause
 local oldpad, newpad = SCE_CTRL_CROSS, SCE_CTRL_CROSS
-local OptionsNow, OptionsCLRNow, OptionsNowKey, Old_color = 1, 0, 0, Color_new(0,0,0)
 local scan_themes, themes = System.listDirectory(themesDir),{now = 1} -- Scanning system themes
 local white = Color_new (255, 255, 255)
 local black = Color_new (0, 0, 0)
@@ -448,11 +466,17 @@ local function Update () -- Updating variables for new level
 	ZEWARDO ()
 end
 
-local pause_delta, pause_status, pause_gravity, pause_buttons, pause_now, pause_y_buttons, pause_x_buttons = 0, false, 0, {"Continue", "Options", "Exit"}, 0, 340, 50
+local now_screen = "zero"
+
+local pause_delta, pause_status, pause_gravity, pause_buttons, pause_now, pause_y_buttons, pause_x_buttons = 0, false, 0, {"Continue", "Options", "Main menu"}, 0, 340, 50
 
 local yes_or_no_delta, yes_or_no_status, yes_or_no_gravity, yes_or_no_now, yes_or_no_buttons = 0, false, 0, 0,{"Yes", "No"}
 
-local options_delta, options_status, options_gravity, options_buttons, options_now, options_y_buttons, options_x_buttons = 0, false, 0, {"Theme","Brightness","Animation","FPS","Reset saves","Back"}, 0, 250, 480
+local theme_delta, theme_status, theme_gravity, theme_now, theme_buttons, theme_name_y, theme_name_gravity, theme_now = 0, false, 0, 0,{"Yes", "No"}, 0, 0, 1
+
+local options_delta, options_status, options_gravity, options_buttons, options_now, options_y_buttons, options_x_buttons = 0, false, 0, {"Theme","Brightness","Animation","FPS","Reset saves","Back"}, 0, 220, 480
+
+local now_number, number_delta, old_color = 0, 0
 
 local function Rotations ()
 	
@@ -460,18 +484,18 @@ local function Rotations ()
 		
 		rot_yes_or_no = rot_yes_or_no + pie/60 * dt
 		if rot_yes_or_no > rot_yes_or_no_max then rot_yes_or_no = rot_yes_or_no - rot_yes_or_no_max end
-	else
-	if not options_status and pause_status then
-		
-		rot_pause = rot_pause + pie/60 * dt
-		if rot_pause > rot_pause_max then rot_pause = rot_pause - rot_pause_max end
-		
-		elseif options_status and pause_status then
-		
-		rot_options = rot_options + pie/60 * dt
-		if rot_options > rot_options_max then rot_options = rot_options - rot_options_max end
-		
-	end
+		else
+		if not options_status and pause_status then
+			
+			rot_pause = rot_pause + pie/60 * dt
+			if rot_pause > rot_pause_max then rot_pause = rot_pause - rot_pause_max end
+			
+			elseif options_status and pause_status then
+			
+			rot_options = rot_options + pie/60 * dt
+			if rot_options > rot_options_max then rot_options = rot_options - rot_options_max end
+			
+		end
 	end
 	
 end
@@ -605,8 +629,8 @@ local function options_screen()
 	
 	local delta = options_delta
 	
-	if not yes_or_no_status then
-	
+	if not (yes_or_no_status or theme_status) then
+		
 		if pause_delta and not options_status and Controls_click(SCE_CTRL_CROSS) and pause_buttons[pause_now]=="Options" then
 			
 			options_status = true
@@ -650,168 +674,385 @@ local function options_screen()
 		end
 		
 	end
-	
-	if options_delta > 0 then
-		
-		drawRect(0,0,960,544,Color_new(0, 0, 0, 100*delta))
-		local y = 544 - (544 -  options_y_buttons)*options_delta
-		local x = options_x_buttons
-		--FontLib_printExtended(options_x_buttons, 100*options_delta+5-100*yes_or_no_delta, "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(0,0,0,100*options_delta-100*yes_or_no_delta) )
-		FontLib_printExtended(options_x_buttons, 100*options_delta-100*yes_or_no_delta, "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(255,255,255,255*options_delta-255*yes_or_no_delta) )
-		
-		if options_status and not yes_or_no_status then
+	if options_delta>0 then
+		drawRect(0,0,960,544,Color_new(0, 0, 0, 255*delta))
+		if theme_delta < 1 then
 			
-			local _up, _down = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN)
+			local y = 544 - (544 -  options_y_buttons)*options_delta
+			local x = options_x_buttons
+			--FontLib_printExtended(options_x_buttons, 100*options_delta+5-100*yes_or_no_delta, "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(0,0,0,100*options_delta-100*yes_or_no_delta) )
+			FontLib_printExtended(options_x_buttons, 100*options_delta-100*yes_or_no_delta, "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(255,255,255,255*options_delta-255*yes_or_no_delta) )
 			
-			if _down then
+			if options_status and not (yes_or_no_status or theme_status) then
 				
-				options_now = options_now + 1
-				if options_now > #options_buttons then	options_now = 1	end
+				local _up, _down = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN)
 				
-				elseif _up then
-				
-				options_now = options_now - 1
-				if options_now < 1 then	options_now = #options_buttons	end
-				
-			end
-		end
-		
-		local _left,_right, _cross = Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT), Controls_click(SCE_CTRL_CROSS)
-		for i = 1, #options_buttons do
-			
-			local size = i + 16
-			local color = Color_new(255,255,255,255*delta)
-			local rot = 0
-			options_buttons[size] = options_buttons[size] or 3
-			local text = options_buttons[i]
-			
-			if options_now ~= i then
-				
-				if options_buttons[size]>3 then
+				if _down then
 					
-					options_buttons[size] = options_buttons[size] - 0.1*dt
+					options_now = options_now + 1
+					if options_now > #options_buttons then	options_now = 1	end
 					
-					elseif options_buttons[size]<3 then
+					elseif _up then
 					
-					options_buttons[size] = 3
-					
-				end				
-				
-				else
-				
-				if options_buttons[size]<4 then
-					
-					options_buttons[size] = options_buttons[size] + 0.1*dt
-					
-					elseif options_buttons[size]>4 then
-					
-					options_buttons[size] = 4
+					options_now = options_now - 1
+					if options_now < 1 then	options_now = #options_buttons	end
 					
 				end
+			end
+			
+			local _left,_right, _cross = Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT), Controls_click(SCE_CTRL_CROSS)
+			for i = 1, #options_buttons do
 				
-				color = change_color(Color_new(255,216,0,255*delta), yes_or_no_delta)
-				rot = pie/60*sin(rot_options)
+				local size = i + 16
+				local color = Color_new(255,255,255,255*delta)
+				local rot = 0
+				options_buttons[size] = options_buttons[size] or 3
+				local text = options_buttons[i]
 				
-				if _left or _right or _cross then
+				if options_now ~= i then
 					
-					if text == "FPS" then
+					if options_buttons[size]>3 then
 						
-						if Options["fps"] == "on" then Options["fps"] = "off" else Options["fps"] = "on" end
-						updateCfg(configDir, Options)
+						options_buttons[size] = options_buttons[size] - 0.1*dt
 						
-						elseif text == "Animation" then
+						elseif options_buttons[size]<3 then
 						
-						if _left then
+						options_buttons[size] = 3
+						
+					end				
+					
+					else
+					
+					if options_buttons[size]<4 then
+						
+						options_buttons[size] = options_buttons[size] + 0.1*dt
+						
+						elseif options_buttons[size]>4 then
+						
+						options_buttons[size] = 4
+						
+					end
+					
+					color = change_color(Color_new(255,216,0,255*delta), yes_or_no_delta)
+					rot = pie/60*sin(rot_options)
+					
+					if _left or _right or _cross then
+						
+						if text == "FPS" then
 							
-							Animations.now = Animations.now - 1
-							
-							if Animations.now<1 then Animations.now = #Animations end
-							
-							Options["animation"] = Animations[Animations.now]
+							if Options["fps"] == "on" then Options["fps"] = "off" else Options["fps"] = "on" end
 							updateCfg(configDir, Options)
 							
-							elseif _right then
+							elseif text == "Animation" then
 							
-							Animations.now = Animations.now + 1
-							
-							if Animations.now>#Animations then Animations.now = 1 end
-							
-							Options["animation"] = Animations[Animations.now]
-							updateCfg(configDir, Options)
-							
-						end
-						
-						elseif text == "Theme" then
-						
-						if _cross then
-							dontPress=true
-							state = 2
-						end
-						
-						elseif text == "Brightness" then
-						
-						if _left then
-							if Options["brightness"] > 1 then 
-								Options["brightness"] = Options["brightness"] - 1 
+							if _left then
+								
+								Animations.now = Animations.now - 1
+								
+								if Animations.now<1 then Animations.now = #Animations end
+								
+								Options["animation"] = Animations[Animations.now]
 								updateCfg(configDir, Options)
+								
+								elseif _right then
+								
+								Animations.now = Animations.now + 1
+								
+								if Animations.now>#Animations then Animations.now = 1 end
+								
+								Options["animation"] = Animations[Animations.now]
+								updateCfg(configDir, Options)
+								
 							end
 							
-						elseif _right then
-							if Options["brightness"] < 5 then 
-								Options["brightness"] = Options["brightness"] + 1
-								updateCfg(configDir, Options)
-							end
-						
-						end
-						elseif text == "Reset saves" then
+							elseif text == "Theme" then
 							
 							if _cross then
-
+								theme_status = true
+								theme_now = 1
+								--dontPress=true
+								--state = 2
+							end
+							
+							elseif text == "Brightness" then
+							
+							if _left then
+								if Options["brightness"] > 1 then 
+									Options["brightness"] = Options["brightness"] - 1 
+									updateCfg(configDir, Options)
+								end
+								
+								elseif _right then
+								if Options["brightness"] < 5 then 
+									Options["brightness"] = Options["brightness"] + 1
+									updateCfg(configDir, Options)
+								end
+								
+							end
+							elseif text == "Reset saves" then
+							
+							if _cross then
+								
 								if yes_or_no_status == true then
 									if yes_or_no_now~=0 then
-									yes_or_no_status = false
-									if yes_or_no_now == 1 then
-										System.deleteFile(dbDir)
-										Update ()
-									end
-									yes_or_no_now = 0
-									else
-									yes_or_no_now = 1
+										yes_or_no_status = false
+										if yes_or_no_now == 1 then
+											System.deleteFile(dbDir)
+											Update ()
+										end
+										yes_or_no_now = 0
+										else
+										yes_or_no_now = 1
 									end
 									
 									else
 									yes_or_no_status = true
 									
 								end
-							
+								
 							end
+						end
+						
 					end
-				
+					
 				end
 				
-			end
-			
-			if text == "FPS" then
-				text = "FPS <"..Options["fps"]..">"
-				elseif text=="Animation" then
-				text = "Animation <"..Options["animation"]..">"
-				elseif text=="Brightness" then
-				text = text.." <"
-				for i=1, 5 do
-					if i <= Options["brightness"] then
-						text = text.."^"
-						else
-						text = text.." "
+				if text == "FPS" then
+					text = "FPS <"..Options["fps"]..">"
+					elseif text=="Animation" then
+					text = "Animation <"..Options["animation"]..">"
+					elseif text=="Brightness" then
+					text = text.." <"
+					for i=1, 5 do
+						if i <= Options["brightness"] then
+							text = text.."^"
+							else
+							text = text.."|"
+						end
 					end
+					text = text..">"
 				end
-				text = text..">"
+				
+				--FontLib_printExtended (x-4, y+4, text,options_buttons[size],options_buttons[size],rot, shadow)
+				FontLib_printExtended (x, y, text,options_buttons[size],options_buttons[size],rot, color)
+				y = y + 14*options_buttons[size]
+				
 			end
-			
-			--FontLib_printExtended (x-4, y+4, text,options_buttons[size],options_buttons[size],rot, shadow)
-			FontLib_printExtended (x, y, text,options_buttons[size],options_buttons[size],rot, color)
-			y = y + 14*options_buttons[size]
 			
 		end
+	end
+	
+end
+
+local function theme_screen()
+	local delta = theme_delta
+	
+	if theme_status then
+		
+		if now_number==0 and Controls_click(SCE_CTRL_CIRCLE) then theme_status = false end 
+		
+		if delta + theme_gravity < 1 then
+			
+			theme_delta = delta + theme_gravity
+			theme_gravity = theme_gravity + 0.005*dt
+			
+			else
+			
+			theme_delta = 1
+			theme_gravity = 0
+			
+		end
+		
+		else
+		
+		if not theme_status and delta - theme_gravity > 0 then
+			
+			theme_delta = delta - theme_gravity
+			theme_gravity = theme_gravity + 0.005*dt
+			
+			else
+			
+			theme_delta = 0
+			theme_gravity = 0
+		end
+		
+	end
+
+	if theme_name_y - theme_name_gravity > 0 then
+		
+		theme_name_y = theme_name_y - theme_name_gravity
+		theme_name_gravity = theme_name_gravity + 0.005*dt
+		
+		else
+		
+		theme_name_y = 0
+		theme_name_gravity = 0
+		
+	end
+	
+	if theme_delta > 0 then
+		if theme_delta == 1 then
+			local _l, _r,_left,_right = Controls_click(SCE_CTRL_LTRIGGER), Controls_click(SCE_CTRL_RTRIGGER), Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT)
+			if _l or _r then
+				if _l then
+					themes.now = themes.now - 1
+					if themes.now<1 then themes.now = #themes end
+					elseif _r then
+					themes.now = themes.now + 1
+					if themes.now>#themes then themes.now = 1 end
+					
+				end
+				
+				if themes.now == #themes then					
+					AcceptTheme(dir.."custom.thm", Colors)				
+					else
+					AcceptTheme(themesDir..themes[themes.now]..".thm", Colors)
+					
+				end
+				Options["nowtheme"] = themes[themes.now]
+				updateCfg(configDir, Options)
+				theme_name_y = 1
+				theme_gravity = 0
+			end
+			if now_number==0 then
+				if _left then
+					if theme_now > 1 then
+						theme_now = theme_now-1
+						else
+						theme_now = #ColorsTable
+					end
+					elseif _right then
+					if theme_now < #ColorsTable then
+						theme_now = theme_now+1
+						else
+						theme_now = 1
+					end
+				end
+			end
+		end
+		drawRect(0,0,960,544,Color_new(0, 0, 0, 255*delta))
+		local start_x = 240
+		local tmp = 1
+		local start_y = 544-(544-32)*delta
+		local y = start_y+122
+		local inv = 255*theme_delta
+		local x = start_x+2
+		
+		Graphics_drawImage(start_x,start_y,tex_but,Color_new(255,255,255,inv))
+		FontLib_printExtended(start_x+240,start_y + 16*(theme_name_y + 1), Options["nowtheme"],2,2, 0, Color_new(255,255,255,inv-255*theme_name_y))
+		drawRect(start_x,start_y+32,480,416,newAlpha(Colors.Background,inv))
+		drawRect(start_x + 120-1, y-1,242,242,newAlpha(Colors.Grid,inv))
+		drawRect(start_x + 121, y + 119,238,2,Colors.X5Lines)
+		drawRect(start_x + 239, y + 1,2,238,Colors.X5Lines)
+		if number_delta<0 then number_delta = number_delta + 0.1 end
+		if number_delta>0 then number_delta = number_delta - 0.1 end
+		if ColorsTable[theme_now+16] then
+			drawRect(start_x+240-10*max(8,len(ColorsTable[theme_now])),start_y+448-ColorsTable[theme_now+16]-48,20*max(8,len(ColorsTable[theme_now])),70, Color_new(0,0,0,255*(ColorsTable[theme_now+16]-16)/16-255*(1-theme_delta)))
+			
+			FontLib_printExtended(480,start_y+448-ColorsTable[theme_now+16]-28,ColorsTable[theme_now],2,2,0,Color_new(255,255,255,255*(ColorsTable[theme_now+16]-16)/16-255*(1-theme_delta)))
+			FontLib_printExtended(480,start_y+448-ColorsTable[theme_now+16]+4,"0x"..rgb2hex({Color_getR(Colors[ColorsTable[theme_now]]),Color_getG(Colors[ColorsTable[theme_now]]),Color_getB(Colors[ColorsTable[theme_now]])}),2,2,0,Color_new(255,255,255,255*(ColorsTable[theme_now+16]-16)/16-255*(1-theme_delta)))
+			if now_number>0 then
+			drawRect(480-64+32+(now_number-1)*16-2,start_y+448-ColorsTable[theme_now + 16]+2-14,16,30, Color_new(0,148,255))
+			end
+			local text = "  "
+			for i=1, 6 do
+				if i==now_number then text = text..sub(rgb2hex({Color_getR(Colors[ColorsTable[theme_now]]),Color_getG(Colors[ColorsTable[theme_now]]),Color_getB(Colors[ColorsTable[theme_now]])}),i,i) else text = text.." " end
+			end
+			
+			FontLib_printExtended(480,start_y+448-ColorsTable[theme_now+16]+4+number_delta*5,text,2,2,0,Color_new(255,255,255,255*(ColorsTable[theme_now+16]-16)/16-255*(1-theme_delta)))
+		end
+		if now_number==0 and Controls_click(SCE_CTRL_CROSS) then
+			now_number = 1
+			old_color = Colors[ColorsTable[theme_now]]
+		elseif now_number~=0 then
+			if Controls_click(SCE_CTRL_LEFT) then
+				if now_number > 1 then now_number = now_number - 1 else now_number = 6 end
+				elseif Controls_click(SCE_CTRL_RIGHT) then
+				if now_number < 6 then now_number = now_number + 1 else now_number = 1 end
+			end
+			if Controls_click(SCE_CTRL_CROSS) then
+				if  Colors[ColorsTable[theme_now]] ~= old_color then
+					
+					MakeTheme(dir.."custom.thm", Colors)
+					themes.now = #themes
+					Options["nowtheme"] = "custom"
+					
+					updateCfg(configDir, Options)
+					
+				end
+				now_number = 0
+			elseif Controls_click(SCE_CTRL_CIRCLE) then
+				Colors[ColorsTable[theme_now]] = old_color
+				now_number = 0
+			end
+		end
+		if now_number > 0 then
+			if Controls_click(SCE_CTRL_UP) then
+				local value = Colors[ColorsTable[theme_now]]
+				local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
+				Colors[ColorsTable[theme_now]] = Color_new(hex2rgb(sub(hex,0,now_number-1)..OptionsColorsNext[sub(hex,now_number,now_number)]..sub(hex,now_number+1,len(hex))))
+				number_delta = -1
+			elseif Controls_click(SCE_CTRL_DOWN) then
+				local value = Colors[ColorsTable[theme_now]]
+				local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
+				Colors[ColorsTable[theme_now]] = Color_new(hex2rgb(sub(hex,0,now_number-1)..OptionsColorsPrev[sub(hex,now_number,now_number)]..sub(hex,now_number+1,len(hex))))
+				number_delta = 1
+			end
+		end
+		local size = (476/#ColorsTable)
+		for i=1, #ColorsTable do
+			local y = i+16
+			ColorsTable[y] = ColorsTable[y] or 16
+			if theme_now == i then
+				
+				if ColorsTable[y] + dt<32 then
+					
+					ColorsTable[y] = ColorsTable[y] + dt
+					
+					else
+					
+					ColorsTable[y] = 32
+					
+				end
+				else
+				
+				if ColorsTable[y] - dt>16 then
+					
+					ColorsTable[y] = ColorsTable[y] - dt
+					
+					else
+					
+					ColorsTable[y] = 16
+					
+				end
+				
+			end
+			drawRect(x+3, start_y+448, size-2,ColorsTable[y],Colors[ColorsTable[i]])
+			drawRect(x+3, start_y+448+ColorsTable[y]-4, size-2,4,Color_new(255,255,255,100))
+			x = x + size
+		end
+		for i=0, 9 do
+			local x = start_x + 120
+			if floor(i/2)==i/2 then drawRect(start_x,y+1,119,22,newAlpha(Colors.SecondBack,inv)) end
+			FontLib_print(x - 15, y + 4, "1", newAlpha(Colors.SideNumbers,inv), 3)
+			for j=0, 9 do
+				if i==0 then 
+					if floor(j/2)==j/2 then drawRect(x+1,start_y+32,22,89,newAlpha(Colors.SecondBack,inv)) end
+					FontLib_print(x + 6 , y - 20,"1",newAlpha(Colors.SideNumbers,inv),3)
+				end
+				
+				tmp = tmp + 1
+				drawRect(x + 1, y + 1, 22, 22, newAlpha(Colors.Tile,inv) )
+				if i==j then Graphics_drawImage(x+1,y+1,tile_tex, newAlpha(Colors.Square,inv)) end
+				if i>0 and j==0 then Graphics_drawImage(x+1,y+1,cross_tex, newAlpha(Colors.Cross,inv)) end
+				if i==0 and j==9 then drawEmptyRect(x-1,y-1,26,26,4,newAlpha(Colors.Frame,inv))	end
+				x = x + 24
+			end
+			y = y + 24
+			
+		end
+		drawEmptyRect(start_x,start_y+32,480,416,2,Color_new(48,48,48,inv))
+		drawEmptyRect(start_x, start_y+32, 480,420,6,Color_new(0,0,0,100*theme_delta))
 		
 	end
 	
@@ -890,7 +1131,7 @@ local function yes_or_no_screen()
 				
 				color = Color_new(255,216,0,255*delta)
 				rot = pie/60*sin(rot_yes_or_no)
-					
+				
 			end
 			FontLib_printExtended(x, 544-100*yes_or_no_delta, yes_or_no_buttons[i], yes_or_no_buttons[size], yes_or_no_buttons[size], rot, color )
 			x = x + 480
@@ -922,7 +1163,6 @@ local function drawLevel () --Draws level
 	local color_tile = change_color(Colors.Tile, pause_delta)
 	local color_cross = change_color(Colors.Cross, pause_delta)
 	local color_square = change_color(Colors.Square, pause_delta)
-	
 	for i = 0, level.height-1 do
 		
 		local x = square_start_x
@@ -1041,7 +1281,6 @@ local function drawLevel () --Draws level
 	end
 	
 	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 4, change_color(newAlpha(Colors.Frame, 255*(1-pause_delta)), pause_delta))
-	
 end
 
 local function drawUpper ()
@@ -1060,7 +1299,6 @@ local function drawUpper ()
 		elseif mh_rot > pie then
 		mh_rot = pie
 	end
-	
 end
 
 local function drawNumbers () --Draw side numbers
@@ -1296,276 +1534,6 @@ local function touchScreen () -- Moving level
 	
 end
 
-local function drawOptionsLevel () -- Draw Color settings screen
-	
-	local priceXY5 = 5*tile_size
-	local start_x = (640)/2-priceXY5 + 1
-	local start_y = 544/2-priceXY5
-	local level_width = priceXY5*2+2
-	local level_height = priceXY5*2+2
-	drawRect(start_x - 2, start_y - 1, level_width, level_height, Colors.Grid)
-	
-	for i = priceXY5 - 1, priceXY5, priceXY5 do
-		
-		if i <= priceXY5 then
-			
-			drawRect(start_x + i - 1, start_y + 1, 2, level_height - 4, Colors.X5Lines)
-			
-		end
-		
-		if i <= priceXY5 then
-			
-			drawRect(start_x, start_y + i, level_width - 4, 2, Colors.X5Lines)
-			
-		end
-		
-	end
-	
-	local y = start_y + 1
-	
-	for i = 0, 9 do
-		
-		local x = start_x
-		
-		if floor(i / 2) == i / 2 then	drawRect(0, y - 1, x - 2, tile_size, Colors.SecondBack) end
-		
-		FontLib_print(x - tile_size + 6, y + 4, "1", Colors.SideNumbers, 3)
-		
-		for j = 0, 9 do
-			
-			drawRect(x, y, square_size, square_size, Colors.Tile)
-			
-			if j < i then
-				
-				Graphics_drawImage(x, y, cross_tex,Colors.Cross)
-				
-			end
-			
-			if i == 0 then
-				
-				if floor(j/2) == j/2 then
-					
-					drawRect(x - 1, 0, tile_size, y - 2, Colors.SecondBack)
-					
-				end
-				
-				FontLib_print(x + half_size-6, y - 20,"1",Colors.SideNumbers,3)
-				
-			end
-			
-			if j == i then
-				
-				Graphics_drawImage(x, y, tile_tex,Colors.Square)
-				
-			end
-			
-			x = x + tile_size
-			
-		end
-		
-		y = y + tile_size
-		
-	end
-	
-	drawEmptyRect(start_x - 2, start_y - 1, frame_size, frame_size, 4, Colors.Frame)
-	
-	drawRect(640, 0, 960, 544, Color_new(0,0,0,200))
-	
-	if OptionsCLRNow == 0 then
-		
-		drawRect(645, 20 + 16 * (OptionsNow - 1), 310, 13, Color_new(0,148,255,150))
-		
-		else
-		
-		local value = Colors[OptionsNowKey]
-		local red = Color_getR(value)
-		local green = Color_getG(value)
-		local blue = Color_getB(value)
-		drawRectCorn(228,435,200,105,10,black)
-		FontLib_printExtended(328, 453, OptionsNowKey, 2, 2, 0, white)
-		drawRect(258+24*OptionsCLRNow, 480,21,31, Color_new(0,148,255,150))
-		FontLib_printScaled(236, 476,"0x"..rgb2hex({red, green, blue}), 3, 3,white)
-		
-		for i = len (red), 2 do	red = " "..red end
-		for i = len (green), 2 do green = " "..green end
-		for i = len (blue), 2 do blue = " "..blue end
-		
-		drawRect(233, 467, 44, 10, value)
-		drawEmptyRect(233, 466, 44, 12,1, white)
-		FontLib_printScaled(233, 467,"   "..red..green..blue,2,1, white)
-		FontLib_print(238, 516 , "x - accept   o - cancel", white)
-		
-	end
-	
-	local y = 20
-	local tmp = 1
-	
-	for key, value in pairs(Colors) do
-		
-		if y == 20+16*(OptionsNow-1) then 
-			
-			OptionsNowKey = key
-			
-		end
-		
-		FontLib_print(665,y,key,white)
-		FontLib_print(865,y,"0x"..rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)}),white)
-		y = y + 16
-		
-	end
-	
-	FontLib_print(665,y,"Presets",white)
-	FontLib_print(889-4*len(themes[themes.now]), y, "<"..themes[themes.now]..">", white)
-end
-
-local function Controls_Options() -- Controls in settings screen
-	
-	local _up, _down, _left, _right, _cross, _circle = Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN), Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT), Controls_click(SCE_CTRL_CROSS), Controls_click(SCE_CTRL_CIRCLE)
-	local _up2, _down2 = Controls_check(pad, SCE_CTRL_UP), Controls_check(pad, SCE_CTRL_DOWN)
-	local time = Timer_getTime(actionTimer)
-	if not dontPress then
-	if OptionsCLRNow == 0 then
-		
-		if _up2 then
-			
-			if opt_pause==optdelay_pause or time > opt_pause then
-				
-				Timer_reset(actionTimer)
-				OptionsNow = OptionsNow - 1 
-				
-				if OptionsNow<1 then OptionsNow = table.len(Colors) + 1 end
-				
-				if _up2 or _down2 then
-					
-					opt_pause = optdelay_pause2
-					
-				end
-				
-			end
-			
-			if not (_up2 or _down2) then
-				
-				opt_pause = optdelay_pause
-				
-			end
-			
-			elseif _down2 then
-			
-			if opt_pause==optdelay_pause or time > opt_pause then
-				
-				Timer_reset(actionTimer)
-				OptionsNow = OptionsNow + 1
-				
-				if OptionsNow > table.len(Colors) + 1 then OptionsNow = 1 end
-				
-				if _up2 or _down2 then
-					
-					opt_pause = optdelay_pause2
-					
-				end
-				
-			end
-			
-			if not (_up2 or _down2) then
-				
-				opt_pause = optdelay_pause
-				
-			end
-			
-			elseif _cross and OptionsNow < table.len(Colors) + 1 then
-			
-			OptionsCLRNow = 1
-			Old_color = Colors[OptionsNowKey]
-			
-			elseif _left or _right then
-			
-			local table_len = table.len(Colors)
-			
-			if OptionsNow == table_len + 1 then
-				
-				if _left then
-					
-					themes.now = themes.now - 1
-					
-					if themes.now<1 then themes.now = #themes end
-					
-					elseif _right then
-					
-					themes.now = themes.now + 1
-					if themes.now>#themes then themes.now = 1 end
-					
-				end
-				
-				if themes.now == #themes then
-					
-					AcceptTheme(dir.."custom.thm", Colors)
-					
-					else
-					
-					AcceptTheme(themesDir..themes[themes.now]..".thm", Colors)
-					
-				end
-				
-				Options["nowtheme"] = themes[themes.now]
-				updateCfg(configDir, Options)
-				
-			end
-		end
-		
-		else
-		
-		local value = Colors[OptionsNowKey]
-		
-		if _up then
-			
-			local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
-			Colors[OptionsNowKey] = Color_new(hex2rgb(sub(hex,0,OptionsCLRNow-1)..OptionsColorsNext[sub(hex,OptionsCLRNow,OptionsCLRNow)]..sub(hex,OptionsCLRNow+1,len(hex))))
-			
-			elseif _down then
-			
-			local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
-			Colors[OptionsNowKey] = Color_new(hex2rgb(sub(hex,0,OptionsCLRNow-1)..OptionsColorsPrev[sub(hex,OptionsCLRNow,OptionsCLRNow)]..sub(hex,OptionsCLRNow+1,len(hex))))
-			
-			elseif _left then
-			
-			OptionsCLRNow = OptionsCLRNow - 1
-			
-			if OptionsCLRNow < 1 then OptionsCLRNow = 6 end
-			
-			elseif _right then
-			
-			OptionsCLRNow = OptionsCLRNow + 1
-			
-			if OptionsCLRNow > 6 then OptionsCLRNow = 1 end
-			
-			elseif _cross then
-			
-			OptionsCLRNow = 0
-			
-			if Colors[OptionsNowKey] ~= Old_color then
-				
-				MakeTheme(dir.."custom.thm", Colors)
-				themes.now = #themes
-				Options["nowtheme"] = "custom"
-				
-				updateCfg(configDir, Options)
-				
-			end
-			
-			elseif _circle then
-			
-			Colors[OptionsNowKey] = Old_color
-			
-			OptionsCLRNow = 0
-			
-		end
-		
-	end
-	else
-		if pad==0 then dontPress = false end
-	end
-end
-
 local function stepOne ()
 	
 	drawRectCorn (480 - len("Choose size:")*3*4-10, 20, len("Choose size:")*3*8+20, 80, 5, black )
@@ -1616,7 +1584,7 @@ end
 level = openPCL (levelDir.."level1.pcl") -- Loads *.pcl file
 updateAllData ()
 Update () --Updating variables for new level
-state = 3
+state = 1
 step = 1
 UpdateNewLevel ()
 local fps = 0
@@ -1639,37 +1607,38 @@ while true do
 	if state == 1 then
 		
 		Screen.clear (change_color(Colors.Background, pause_delta))
-		drawLevel ()
-		
-		if pause_delta ~= 1 then
-			
-			drawNumbers ()
-			
-			elseif pause_delta==1 then
-			
-			Rotations ()
-			
+		if theme_delta~=1 then
+			if options_delta~= 1 then
+				drawLevel ()
+			end
+			if pause_delta ~= 1 then
+				if options_delta~= 1 then
+				drawNumbers ()
+				end
+				elseif pause_delta==1 then
+				
+				Rotations ()
+				
+			end
 		end
 		
 		drawUpper ()
 		pause_screen ()
 		if pause_delta > 0 then
-			options_screen ()
+			if theme_delta~=1 then
+				options_screen ()
+			end
+			theme_screen ()
 		end
 		yes_or_no_screen ()
-		
-		elseif state == 2 then
-		
-		Screen.clear (Colors.Background)
-		drawOptionsLevel ()
-		
+			
 		elseif state == 3 then
 		
 		if step == 1 then
 			
 			Screen.clear (Colors.Background)
 			stepOne ()
-			
+		
 		end
 		
 		progressBar ()
@@ -1679,6 +1648,7 @@ while true do
 		drawRect(930,0,30,20,black)
 		FontLib_printRotated(945,10,fps,0,white)
 	end
+	FontLib_print(865,544-19*pause_delta,"@creckeryop",Color_new(132,200,255,255*pause_delta))
 	drawRect(0,0,960,544,Color_new(0,0,0,150-30*Options["brightness"]))
 	Graphics.termBlend ()
 	
@@ -1690,17 +1660,13 @@ while true do
 			
 		end
 		
-		elseif state == 2 then
-		
-		Controls_Options ()
-		
 	end
 	
-	if Controls_click (SCE_CTRL_RTRIGGER) then
-		
-		if state == 2 then state = 1 else state = 2 end
-		
-	end
+	--if Controls_click (SCE_CTRL_RTRIGGER) then
+	
+	--if state == 2 then state = 1 else state = 2 end
+	
+	--end
 	
 	if Controls_click (SCE_CTRL_SELECT) then
 		
