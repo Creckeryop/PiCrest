@@ -1,5 +1,5 @@
 local Controls_check, Color_new, Color_getR, Color_getG, Color_getB, Color_getA = Controls.check, Color.new, Color.getR, Color.getG, Color.getB, Color.getA
-local Graphics_drawImage, Graphics_dIE = Graphics.drawImage, Graphics.drawImageExtended
+local Graphics_drawImage, Graphics_dIE, Graphics_drawScaleImage = Graphics.drawImage, Graphics.drawImageExtended,Graphics.drawScaleImage
 local Timer_new, Timer_reset, Timer_resume, Timer_pause, Timer_isPlaying, Timer_getTime, Timer_setTime = Timer.new, Timer.reset, Timer.resume, Timer.pause, Timer.isPlaying, Timer.getTime, Timer.setTime
 database = {}
 local Libs = { -- Libs to load
@@ -21,9 +21,11 @@ local Colors = { -- default theme
 	X5Lines = Color_new(200,0,0),
 	Grid = Color_new(0,0,0),
 	Frame = Color_new(200, 0, 200),
+	FrameOutline = Color_new(0,0,0),
 	SideNumbers = Color_new (255,255,255)
 	
 }
+local ColorsTable = {"Background","SecondBack","SideNumbers","Grid","X5Lines","Tile","Square","Cross","Frame","FrameOutline",}
 
 local OptionsColorsNext = { -- x => x + 1
 	
@@ -52,9 +54,7 @@ local Options = { -- Default options
 	
 }
 
-local ColorsTable = {}
-
-appDir = "app0:/" --Dir for app0
+appDir = "app0/" --Dir for app0
 dataDir = appDir.."data/" --Dir for data in app0
 libDir = dataDir.."libs/" --Dir for libs in app0
 levelDir = dataDir.."lvls/" --Dir for levels in app0
@@ -74,7 +74,7 @@ local hex2rgb, rgb2hex = hex2rgb, rgb2hex
 local openPCL, updatePCL, createPCL, getRNPCL = PCL_Lib.open, PCL_Lib.update, PCL_Lib.create, PCL_Lib.getRN
 local readCfg, updateCfg = readCfg, updateCfg
 local AcceptTheme, MakeTheme = AcceptTheme, MakeTheme
-
+--[[
 do 
 	local i = 1
 	for key, value in pairs(Colors) do
@@ -83,7 +83,8 @@ do
 		i = i + 1
 		
 	end
-end
+	table.sort(ColorsTable)
+end]]
 
 function table.len (t) -- returns table length 
 	
@@ -126,11 +127,15 @@ Database.close(db)
 local tex_but = Graphics.loadImage(dataDir.."button.png")
 local pie = math.pi
 local tile_tex, cross_tex = Graphics.loadImage(dataDir.."tile.png"),Graphics.loadImage(dataDir.."cross.png")
+Graphics.setImageFilters(tile_tex, FILTER_LINEAR  , FILTER_LINEAR  )
+Graphics.setImageFilters(cross_tex, FILTER_LINEAR  , FILTER_LINEAR  )
 local tile_stackU, tile_stackL = {}, {}
 local DeltaTimer, newTime, actionTimer, gameTimer = Timer_new(), 0, Timer_new(), Timer_new()
 local FPSTimer = Timer_new()
 local start_x, start_y, tile_size = 0, 0, 24
+local square_original_size = 44
 local half_size, square_size, square_start_x, square_start_y = tile_size / 2, tile_size - 2, start_x + 1,start_y + 1
+local mnojitel = square_size/square_original_size
 local level_width, level_height = 0, 0
 local frame_x, frame_y, x5lines, y5lines, priceXY5, frame_size = 0, 0, 0, 0, 0, tile_size + 2
 local sqrt, ceil, max, len, floor, sub, sin, cos = math.sqrt, math.ceil, math.max, string.len, math.floor, string.sub, math.sin, math.cos
@@ -1043,9 +1048,9 @@ local function theme_screen()
 				
 				tmp = tmp + 1
 				drawRect(x + 1, y + 1, 22, 22, newAlpha(Colors.Tile,inv) )
-				if i==j then Graphics_drawImage(x+1,y+1,tile_tex, newAlpha(Colors.Square,inv)) end
-				if i>0 and j==0 then Graphics_drawImage(x+1,y+1,cross_tex, newAlpha(Colors.Cross,inv)) end
-				if i==0 and j==9 then drawEmptyRect(x-1,y-1,26,26,4,newAlpha(Colors.Frame,inv))	end
+				if i==j then Graphics_dIE(x+12,y+12,tile_tex,0,0,square_original_size,square_original_size,0,22/square_original_size,22/square_original_size, newAlpha(Colors.Square,inv)) end
+				if i>0 and j==0 then Graphics_dIE(x+12,y+12,cross_tex,0,0,square_original_size,square_original_size,0,22/square_original_size,22/square_original_size, newAlpha(Colors.Cross,inv)) end
+				if i==0 and j==9 then drawEmptyRect(x-1,y-1,26,26,4,newAlpha(Colors.Frame,inv)) drawEmptyRect(x-1,y-1,26,26,1,newAlpha(Colors.FrameOutline,inv)) drawEmptyRect(x+3,y+3,18,18,1,newAlpha(Colors.FrameOutline,inv))	end
 				x = x + 24
 			end
 			y = y + 24
@@ -1196,49 +1201,49 @@ local function drawLevel () --Draws level
 			if Options["animation"] == "fade" then
 				
 				if tmp3>0 and tmp3<1 then
-					Graphics_drawImage(x, y, cross_tex,Color_new(Color_getR(color_cross),Color_getG(color_cross),Color_getB(color_cross),tmp3*255))
+					Graphics_drawScaleImage(x, y, cross_tex,mnojitel,mnojitel,Color_new(Color_getR(color_cross),Color_getG(color_cross),Color_getB(color_cross),tmp3*255))
 					elseif tmp3>0 then
-					Graphics_drawImage(x, y, cross_tex,color_cross)
+					Graphics_drawScaleImage(x, y, cross_tex,mnojitel,mnojitel,color_cross)
 				end
 				
 				if tmp2>0 and tmp2<1 then
-					Graphics_drawImage(x, y, tile_tex,Color_new(Color_getR(color_square),Color_getG(color_square),Color_getB(color_square),tmp2*255))
+					Graphics_drawScaleImage(x, y, tile_tex,mnojitel,mnojitel,Color_new(Color_getR(color_square),Color_getG(color_square),Color_getB(color_square),tmp2*255))
 					elseif tmp2>0 then
-					Graphics_drawImage(x, y, tile_tex,color_square)
+					Graphics_drawScaleImage(x, y, tile_tex,mnojitel,mnojitel,color_square)
 				end
 				
 				elseif Options["animation"] == "rescale" then
 				
 				if tmp3>0 and tmp3<1 then
-					Graphics_dIE(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,0,tmp3,tmp3,color_cross)
+					Graphics_dIE(x-1+half_size, y-1+half_size, cross_tex,0,0,square_original_size,square_original_size,0,tmp3*mnojitel,tmp3*mnojitel,color_cross)
 					elseif tmp3>0 then
-					Graphics_drawImage(x, y, cross_tex,color_cross)
+					Graphics_drawScaleImage(x, y, cross_tex,mnojitel,mnojitel,color_cross)
 				end
 				
 				if tmp2>0 and tmp2<1 then
-					Graphics_dIE(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,0,tmp2,tmp2,color_square)
+					Graphics_dIE(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_original_size,square_original_size,0,tmp2*mnojitel,tmp2*mnojitel,color_square)
 					elseif tmp2>0 then
-					Graphics_drawImage(x, y, tile_tex,color_square)
+					Graphics_drawScaleImage(x, y, tile_tex,mnojitel,mnojitel,color_square)
 				end
 				elseif Options["animation"] == "rotating" then
 				
 				if tmp3>0 and tmp3<1 then
-					Graphics_dIE(x-1+half_size, y-1+half_size, cross_tex,0,0,square_size,square_size,2*pie*tmp3,tmp3,tmp3,color_cross)
+					Graphics_dIE(x-1+half_size, y-1+half_size, cross_tex,0,0,square_original_size,square_original_size,2*pie*tmp3,tmp3*mnojitel,tmp3*mnojitel,color_cross)
 					elseif tmp3>0 then
-					Graphics_drawImage(x, y, cross_tex,color_cross)
+					Graphics_drawScaleImage(x, y, cross_tex,mnojitel,mnojitel,color_cross)
 				end
 				
 				if tmp2>0 and tmp2<1 then
-					Graphics_dIE(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_size,square_size,2*pie*tmp2,tmp2,tmp2,color_square)
+					Graphics_dIE(x-1+half_size, y-1+half_size, tile_tex ,0,0,square_original_size,square_original_size,2*pie*tmp2,tmp2*mnojitel,tmp2*mnojitel,color_square)
 					elseif tmp2>0 then
-					Graphics_drawImage(x, y, tile_tex,color_square)
+					Graphics_drawScaleImage(x, y, tile_tex,mnojitel,mnojitel,color_square)
 				end
 				elseif Options["animation"] == "off" then
 				
 				if tmp1 == 1 then
-					Graphics_drawImage(x, y, tile_tex,color_square)
+					Graphics_drawScaleImage(x, y, tile_tex,mnojitel,mnojitel,color_square)
 					elseif tmp1 == -1 then
-					Graphics_drawImage(x, y, cross_tex,color_cross)
+					Graphics_drawScaleImage(x, y, cross_tex,mnojitel,mnojitel,color_cross)
 				end
 				
 			end
@@ -1280,7 +1285,10 @@ local function drawLevel () --Draws level
 		
 	end
 	
-	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 4, change_color(newAlpha(Colors.Frame, 255*(1-pause_delta)), pause_delta))
+	drawEmptyRect(start_x + frame_x * tile_size, start_y + frame_y * tile_size, frame_size-2, frame_size-2, 4, change_color(newAlpha(Colors.Frame, 255*(1-pause_delta)), pause_delta))
+	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 1, change_color(newAlpha(Colors.FrameOutline, 255*(1-pause_delta)), pause_delta))
+	drawEmptyRect(start_x + frame_x * tile_size + 3, start_y + frame_y * tile_size + 3, frame_size-8, frame_size-8, 1, change_color(newAlpha(Colors.FrameOutline, 255*(1-pause_delta)), pause_delta))
+
 end
 
 local function drawUpper ()

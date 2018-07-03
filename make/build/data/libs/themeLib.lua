@@ -14,7 +14,7 @@ function MakeTheme (_path, table) -- saves custom theme to default directory
 end
 
 function AcceptTheme (_path, table) -- Loads theme from *.thm file
-	local _table = {}
+	
 	local thm = System.openFile(_path, FREAD)
 	local thm_size = System.sizeFile(thm)
 	local k,key,value = true,"",""
