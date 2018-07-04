@@ -26,7 +26,7 @@ local Colors = { -- default theme
 	
 }
 local ColorsTable = {"Background","SecondBack","SideNumbers","Grid","X5Lines","Tile","Square","Cross","Frame","FrameOutline",}
-
+local color_size = 476/#ColorsTable
 local OptionsColorsNext = { -- x => x + 1
 	
 	["0"] = "1", ["1"] = "2", ["2"] = "3", ["3"] = "4", ["4"] = "5", ["5"] = "6", ["6"] = "7", ["7"] = "8", ["8"] = "9", ["9"] = "A", ["A"] = "B", ["B"] = "C", ["C"] = "D", ["D"] = "E", ["E"] = "F", ["F"] = "0"
@@ -54,7 +54,7 @@ local Options = { -- Default options
 	
 }
 
-appDir = "app0/" --Dir for app0
+appDir = "app0:/" --Dir for app0
 dataDir = appDir.."data/" --Dir for data in app0
 libDir = dataDir.."libs/" --Dir for libs in app0
 levelDir = dataDir.."lvls/" --Dir for levels in app0
@@ -75,13 +75,13 @@ local openPCL, updatePCL, createPCL, getRNPCL = PCL_Lib.open, PCL_Lib.update, PC
 local readCfg, updateCfg = readCfg, updateCfg
 local AcceptTheme, MakeTheme = AcceptTheme, MakeTheme
 --[[
-do 
+	do 
 	local i = 1
 	for key, value in pairs(Colors) do
-		
-		ColorsTable[i] = key
-		i = i + 1
-		
+	
+	ColorsTable[i] = key
+	i = i + 1
+	
 	end
 	table.sort(ColorsTable)
 end]]
@@ -134,6 +134,7 @@ local DeltaTimer, newTime, actionTimer, gameTimer = Timer_new(), 0, Timer_new(),
 local FPSTimer = Timer_new()
 local start_x, start_y, tile_size = 0, 0, 24
 local square_original_size = 44
+local options_square_size = 22/square_original_size
 local half_size, square_size, square_start_x, square_start_y = tile_size / 2, tile_size - 2, start_x + 1,start_y + 1
 local mnojitel = square_size/square_original_size
 local level_width, level_height = 0, 0
@@ -152,7 +153,7 @@ local tile_oldAdd, tile_nowAdd = 1, 1
 local mh_rot = pie
 local level = {}
 local steps = {"Choosing size"}
-local rot_pause, rot_pause_max, rot_options, rot_options_max, rot_yes_or_no, rot_yes_or_no_max  = 0, 16*pie, 0, 16*pie, 0, 16*pie
+local rot_pause, rot_pause_max, rot_options, rot_options_max, rot_yes_or_no, rot_yes_or_no_max, rot_theme, rot_theme_max  = 0, 16*pie, 0, 16*pie, 0, 16*pie, 0, 16*pie
 local numbers_dim = 0
 
 local function ZEWARDO ()
@@ -483,6 +484,46 @@ local options_delta, options_status, options_gravity, options_buttons, options_n
 
 local now_number, number_delta, old_color = 0, 0
 
+local function return_delta_gravity(status, gravity, delta, rot)
+	if status then
+		if delta+gravity < 1 then
+			return delta + gravity, gravity + 0.005*dt,0
+		else
+			return 1, 0,rot
+		end
+	else
+		if delta - gravity > 0 then
+			return delta - gravity, gravity + 0.005*dt,rot
+		else
+			return 0, 0,rot
+		end
+	end
+end
+
+local function return_color_rotation(now, i,trueColor,falseColor, rot)
+	if now~=i then
+		return falseColor,0
+	else
+		return trueColor,pie/60*sin(rot)
+	end
+end
+
+local function if_now_change(now, i, table, iSize, add, min,max)
+	if now == i then
+		if table[iSize] + add<max then
+			table[iSize] = table[iSize] + add
+			else
+			table[iSize] = max
+		end
+		else
+		if table[iSize] - add>min then
+			table[iSize] = table[iSize] - add
+			else
+			table[iSize] = min
+		end
+	end
+end
+
 local function Rotations ()
 	
 	if yes_or_no_status then
@@ -490,16 +531,21 @@ local function Rotations ()
 		rot_yes_or_no = rot_yes_or_no + pie/60 * dt
 		if rot_yes_or_no > rot_yes_or_no_max then rot_yes_or_no = rot_yes_or_no - rot_yes_or_no_max end
 		else
-		if not options_status and pause_status then
-			
-			rot_pause = rot_pause + pie/60 * dt
-			if rot_pause > rot_pause_max then rot_pause = rot_pause - rot_pause_max end
-			
-			elseif options_status and pause_status then
-			
-			rot_options = rot_options + pie/60 * dt
-			if rot_options > rot_options_max then rot_options = rot_options - rot_options_max end
-			
+		if theme_status then
+		rot_theme = rot_theme + pie/60 * dt
+		if rot_theme > rot_theme_max then rot_theme = rot_theme - rot_theme_max end
+			else
+			if not options_status and pause_status then
+				
+				rot_pause = rot_pause + pie/60 * dt
+				if rot_pause > rot_pause_max then rot_pause = rot_pause - rot_pause_max end
+				
+				elseif options_status and pause_status then
+				
+				rot_options = rot_options + pie/60 * dt
+				if rot_options > rot_options_max then rot_options = rot_options - rot_options_max end
+				
+			end
 		end
 	end
 	
@@ -508,7 +554,9 @@ end
 local function pause_screen ()
 	
 	local delta = pause_delta
-	
+	local status = pause_status
+	local gravity = pause_gravity
+	pause_delta,pause_gravity, rot_pause = return_delta_gravity (status, gravity, delta, rot_pause)
 	if not options_status then
 		
 		if (Controls_click(SCE_CTRL_START) or pause_status and (Controls_click(SCE_CTRL_CIRCLE) or Controls_click(SCE_CTRL_CROSS) and pause_buttons[pause_now] == "Continue")) and (delta==1 or delta==0) then
@@ -530,37 +578,7 @@ local function pause_screen ()
 		end
 		
 	end
-	
-	if pause_status then
 		
-		if delta+pause_gravity<1 then
-			
-			pause_delta = pause_delta + pause_gravity
-			pause_gravity = pause_gravity + 0.005*dt
-			rot_pause = 0
-			
-			else
-			
-			pause_delta = 1
-			pause_gravity = 0
-			
-		end
-		
-		else
-		
-		if delta-pause_gravity>0 then
-			
-			pause_delta = pause_delta - pause_gravity
-			pause_gravity = pause_gravity + 0.005*dt
-			
-			else
-			
-			pause_delta = 0
-			pause_gravity = 0
-			
-		end
-	end
-	
 	if pause_delta > 0 then
 		
 		drawRect(0,0,960,544,Color_new(0, 0, 0, 100*delta))
@@ -584,7 +602,6 @@ local function pause_screen ()
 			end
 			
 		end
-		--FontLib_printExtended(145, 100*pause_delta+5 - 100*options_delta, "Pause", 5, 5, pie/90*sin(rot_pause/2), Color_new(0,0,0,100*pause_delta - 100*options_delta) )
 		FontLib_printExtended(150, 100*pause_delta- 100*options_delta, "Pause", 5, 5, pie/90*sin(rot_pause/2), Color_new(255,255,255,255*pause_delta - 255*options_delta) )
 		
 		for i = 1, #pause_buttons do
@@ -593,35 +610,11 @@ local function pause_screen ()
 			local color = Color_new(255,255,255,255*delta)
 			pause_buttons[size] = pause_buttons[size] or 3
 			
-			if pause_now ~= i then
-				
-				if pause_buttons[size]>3 then
-					
-					pause_buttons[size] = pause_buttons[size] - 0.1*dt
-					
-					elseif pause_buttons[size]<3 then
-					
-					pause_buttons[size] = 3
-					
-				end				
-				
-				else
-				
-				if pause_buttons[size]<4 then
-					
-					pause_buttons[size] = pause_buttons[size] + 0.1*dt
-					
-					elseif pause_buttons[size]>4 then
-					
-					pause_buttons[size] = 4
-					
-				end
-				
+			if_now_change(pause_now,i,pause_buttons, size, 0.1*dt, 3,4)
+			if pause_now == i then
 				color = change_color(Color_new(255,216,0,255*delta), options_delta)
-				
 			end
 			
-			--FontLib_printScaled (x + 10*(pause_buttons[size] - 4)-4, y+4, pause_buttons[i],pause_buttons[size],pause_buttons[size], shadow)
 			FontLib_printScaled (x + 10*(pause_buttons[size] - 4), y, pause_buttons[i],pause_buttons[size],pause_buttons[size], color)
 			y = y + 14*pause_buttons[size]
 			
@@ -633,6 +626,9 @@ end
 local function options_screen()
 	
 	local delta = options_delta
+	local status = options_status
+	local gravity = options_gravity
+	options_delta,options_gravity,rot_options = return_delta_gravity (status, gravity, delta, rot_options)
 	
 	if not (yes_or_no_status or theme_status) then
 		
@@ -650,43 +646,13 @@ local function options_screen()
 		end
 	end
 	
-	if options_status then
-		
-		if delta + options_gravity < 1 then
-			
-			options_delta = options_delta + options_gravity
-			options_gravity = options_gravity + 0.005*dt
-			rot_options = 0
-			
-			else
-			
-			options_delta = 1
-			options_gravity = 0
-			
-		end
-		
-		else
-		
-		if not options_status and delta - options_gravity > 0 then
-			
-			options_delta = options_delta - options_gravity
-			options_gravity = options_gravity + 0.005*dt
-			
-			else
-			
-			options_delta = 0
-			options_gravity = 0
-		end
-		
-	end
 	if options_delta>0 then
 		drawRect(0,0,960,544,Color_new(0, 0, 0, 255*delta))
 		if theme_delta < 1 then
 			
 			local y = 544 - (544 -  options_y_buttons)*options_delta
 			local x = options_x_buttons
-			--FontLib_printExtended(options_x_buttons, 100*options_delta+5-100*yes_or_no_delta, "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(0,0,0,100*options_delta-100*yes_or_no_delta) )
-			FontLib_printExtended(options_x_buttons, 100*options_delta-100*yes_or_no_delta, "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(255,255,255,255*options_delta-255*yes_or_no_delta) )
+			FontLib_printExtended(options_x_buttons, 100*(options_delta-yes_or_no_delta), "Options", 5, 5, pie/90*sin(rot_options/2), Color_new(255,255,255,255*(options_delta-yes_or_no_delta)) )
 			
 			if options_status and not (yes_or_no_status or theme_status) then
 				
@@ -709,38 +675,12 @@ local function options_screen()
 			for i = 1, #options_buttons do
 				
 				local size = i + 16
-				local color = Color_new(255,255,255,255*delta)
-				local rot = 0
+				local color, rot = return_color_rotation(options_now, i, change_color(Color_new(255,216,0,255*delta), yes_or_no_delta),Color_new(255,255,255,255*delta), rot_options)
 				options_buttons[size] = options_buttons[size] or 3
 				local text = options_buttons[i]
-				
-				if options_now ~= i then
-					
-					if options_buttons[size]>3 then
-						
-						options_buttons[size] = options_buttons[size] - 0.1*dt
-						
-						elseif options_buttons[size]<3 then
-						
-						options_buttons[size] = 3
-						
-					end				
-					
-					else
-					
-					if options_buttons[size]<4 then
-						
-						options_buttons[size] = options_buttons[size] + 0.1*dt
-						
-						elseif options_buttons[size]>4 then
-						
-						options_buttons[size] = 4
-						
-					end
-					
-					color = change_color(Color_new(255,216,0,255*delta), yes_or_no_delta)
-					rot = pie/60*sin(rot_options)
-					
+				if_now_change(options_now,i,options_buttons, size, 0.1*dt, 3,4)
+				if options_now == i then
+								
 					if _left or _right or _cross then
 						
 						if text == "FPS" then
@@ -775,8 +715,6 @@ local function options_screen()
 							if _cross then
 								theme_status = true
 								theme_now = 1
-								--dontPress=true
-								--state = 2
 							end
 							
 							elseif text == "Brightness" then
@@ -838,7 +776,6 @@ local function options_screen()
 					text = text..">"
 				end
 				
-				--FontLib_printExtended (x-4, y+4, text,options_buttons[size],options_buttons[size],rot, shadow)
 				FontLib_printExtended (x, y, text,options_buttons[size],options_buttons[size],rot, color)
 				y = y + 14*options_buttons[size]
 				
@@ -851,54 +788,17 @@ end
 
 local function theme_screen()
 	local delta = theme_delta
-	
-	if theme_status then
-		
-		if now_number==0 and Controls_click(SCE_CTRL_CIRCLE) then theme_status = false end 
-		
-		if delta + theme_gravity < 1 then
+	local status = theme_status
+	local gravity = theme_gravity
+	theme_delta,theme_gravity = return_delta_gravity (status, gravity, delta)
+	theme_name_y,theme_name_gravity = return_delta_gravity (false, theme_name_gravity, theme_name_y)
+	if number_delta<0 then number_delta = number_delta + 0.1 end
+	if number_delta>0 then number_delta = number_delta - 0.1 end
+	if theme_delta == 1 then
+			local _l, _r,_up,_down,_left,_right,_cross,_circle = Controls_click(SCE_CTRL_LTRIGGER), Controls_click(SCE_CTRL_RTRIGGER), Controls_click(SCE_CTRL_UP), Controls_click(SCE_CTRL_DOWN), Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT),Controls_click(SCE_CTRL_CROSS),Controls_click(SCE_CTRL_CIRCLE)
 			
-			theme_delta = delta + theme_gravity
-			theme_gravity = theme_gravity + 0.005*dt
-			
-			else
-			
-			theme_delta = 1
-			theme_gravity = 0
-			
-		end
-		
-		else
-		
-		if not theme_status and delta - theme_gravity > 0 then
-			
-			theme_delta = delta - theme_gravity
-			theme_gravity = theme_gravity + 0.005*dt
-			
-			else
-			
-			theme_delta = 0
-			theme_gravity = 0
-		end
-		
-	end
-
-	if theme_name_y - theme_name_gravity > 0 then
-		
-		theme_name_y = theme_name_y - theme_name_gravity
-		theme_name_gravity = theme_name_gravity + 0.005*dt
-		
-		else
-		
-		theme_name_y = 0
-		theme_name_gravity = 0
-		
-	end
-	
-	if theme_delta > 0 then
-		if theme_delta == 1 then
-			local _l, _r,_left,_right = Controls_click(SCE_CTRL_LTRIGGER), Controls_click(SCE_CTRL_RTRIGGER), Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT)
-			if _l or _r then
+			if now_number==0 then
+				if _l or _r then
 				if _l then
 					themes.now = themes.now - 1
 					if themes.now<1 then themes.now = #themes end
@@ -907,7 +807,6 @@ local function theme_screen()
 					if themes.now>#themes then themes.now = 1 end
 					
 				end
-				
 				if themes.now == #themes then					
 					AcceptTheme(dir.."custom.thm", Colors)				
 					else
@@ -918,123 +817,78 @@ local function theme_screen()
 				updateCfg(configDir, Options)
 				theme_name_y = 1
 				theme_gravity = 0
-			end
-			if now_number==0 then
-				if _left then
-					if theme_now > 1 then
-						theme_now = theme_now-1
-						else
-						theme_now = #ColorsTable
+				elseif _left then if theme_now > 1 then theme_now = theme_now-1 else theme_now = #ColorsTable	end
+				elseif _right then	if theme_now < #ColorsTable then theme_now = theme_now+1 else theme_now = 1	end
+				elseif _circle then	theme_status = false
+				elseif _cross then	now_number = 1	old_color = Colors[ColorsTable[theme_now]]
+				end
+				else
+				if _left then if now_number > 1 then now_number = now_number - 1 else now_number = 6 end
+				elseif _right then	if now_number < 6 then now_number = now_number + 1 else now_number = 1 end
+				elseif _cross then
+					if  Colors[ColorsTable[theme_now]] ~= old_color then
+						MakeTheme(dir.."custom.thm", Colors)
+						themes.now = #themes
+						Options["nowtheme"] = "custom"
+						updateCfg(configDir, Options)
 					end
-					elseif _right then
-					if theme_now < #ColorsTable then
-						theme_now = theme_now+1
-						else
-						theme_now = 1
-					end
+					now_number = 0
+				elseif _circle then	Colors[ColorsTable[theme_now]] = old_color	now_number = 0
+				elseif _up then
+					local value = Colors[ColorsTable[theme_now]]
+					local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
+					Colors[ColorsTable[theme_now]] = Color_new(hex2rgb(sub(hex,0,now_number-1)..OptionsColorsNext[sub(hex,now_number,now_number)]..sub(hex,now_number+1,len(hex))))
+					number_delta = -1
+				elseif _down then
+					local value = Colors[ColorsTable[theme_now]]
+					local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
+					Colors[ColorsTable[theme_now]] = Color_new(hex2rgb(sub(hex,0,now_number-1)..OptionsColorsPrev[sub(hex,now_number,now_number)]..sub(hex,now_number+1,len(hex))))
+					number_delta = 1
 				end
 			end
 		end
-		drawRect(0,0,960,544,Color_new(0, 0, 0, 255*delta))
+	if theme_delta > 0 then
+		
 		local start_x = 240
 		local tmp = 1
 		local start_y = 544-(544-32)*delta
 		local y = start_y+122
 		local inv = 255*theme_delta
 		local x = start_x+2
+		drawRect(0,0,960,544,Color_new(0, 0, 0, inv))
 		
 		Graphics_drawImage(start_x,start_y,tex_but,Color_new(255,255,255,inv))
-		FontLib_printExtended(start_x+240,start_y + 16*(theme_name_y + 1), Options["nowtheme"],2,2, 0, Color_new(255,255,255,inv-255*theme_name_y))
+		FontLib_printExtended(start_x+240,start_y + 16*(theme_name_y + 1)+2, string.upper(Options["nowtheme"]),2,2, 0, Color_new(255,255,255,inv-255*theme_name_y))
 		drawRect(start_x,start_y+32,480,416,newAlpha(Colors.Background,inv))
 		drawRect(start_x + 120-1, y-1,242,242,newAlpha(Colors.Grid,inv))
 		drawRect(start_x + 121, y + 119,238,2,Colors.X5Lines)
 		drawRect(start_x + 239, y + 1,2,238,Colors.X5Lines)
-		if number_delta<0 then number_delta = number_delta + 0.1 end
-		if number_delta>0 then number_delta = number_delta - 0.1 end
-		if ColorsTable[theme_now+16] then
-			drawRect(start_x+240-10*max(8,len(ColorsTable[theme_now])),start_y+448-ColorsTable[theme_now+16]-48,20*max(8,len(ColorsTable[theme_now])),70, Color_new(0,0,0,255*(ColorsTable[theme_now+16]-16)/16-255*(1-theme_delta)))
-			
-			FontLib_printExtended(480,start_y+448-ColorsTable[theme_now+16]-28,ColorsTable[theme_now],2,2,0,Color_new(255,255,255,255*(ColorsTable[theme_now+16]-16)/16-255*(1-theme_delta)))
-			FontLib_printExtended(480,start_y+448-ColorsTable[theme_now+16]+4,"0x"..rgb2hex({Color_getR(Colors[ColorsTable[theme_now]]),Color_getG(Colors[ColorsTable[theme_now]]),Color_getB(Colors[ColorsTable[theme_now]])}),2,2,0,Color_new(255,255,255,255*(ColorsTable[theme_now+16]-16)/16-255*(1-theme_delta)))
+		do
+			local size = ColorsTable[theme_now+16] or 16
+			local key = ColorsTable[theme_now]
+			local value = Colors[key]
+			local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
+			local inv = 255*(size/16-2+theme_delta)
+			local _max = max(8,len(key))*10
+			drawRect(start_x+240-_max,start_y+400-size,2*_max,70, Color_new(0,0,0,inv))
+			FontLib_printExtended(480,start_y+420-size,key,2,2,0,Color_new(255,255,255,inv))
+			FontLib_printExtended(480,start_y+452-size,"0x"..hex,2,2,0,Color_new(255,255,255,inv))
 			if now_number>0 then
-			drawRect(480-64+32+(now_number-1)*16-2,start_y+448-ColorsTable[theme_now + 16]+2-14,16,30, Color_new(0,148,255))
+				drawRect(446+(now_number-1)*16,start_y+436-size,16,30, Color_new(0,148,255,255))
 			end
 			local text = "  "
 			for i=1, 6 do
-				if i==now_number then text = text..sub(rgb2hex({Color_getR(Colors[ColorsTable[theme_now]]),Color_getG(Colors[ColorsTable[theme_now]]),Color_getB(Colors[ColorsTable[theme_now]])}),i,i) else text = text.." " end
+				if i == now_number then text = text..sub(hex,i,i) else text = text.." " end
 			end
-			
-			FontLib_printExtended(480,start_y+448-ColorsTable[theme_now+16]+4+number_delta*5,text,2,2,0,Color_new(255,255,255,255*(ColorsTable[theme_now+16]-16)/16-255*(1-theme_delta)))
+			FontLib_printExtended(480+cos(2*rot_theme),start_y+452-size+number_delta*5+sin(2*rot_theme),text,2,2,0,Color_new(255,255,255,inv))
 		end
-		if now_number==0 and Controls_click(SCE_CTRL_CROSS) then
-			now_number = 1
-			old_color = Colors[ColorsTable[theme_now]]
-		elseif now_number~=0 then
-			if Controls_click(SCE_CTRL_LEFT) then
-				if now_number > 1 then now_number = now_number - 1 else now_number = 6 end
-				elseif Controls_click(SCE_CTRL_RIGHT) then
-				if now_number < 6 then now_number = now_number + 1 else now_number = 1 end
-			end
-			if Controls_click(SCE_CTRL_CROSS) then
-				if  Colors[ColorsTable[theme_now]] ~= old_color then
-					
-					MakeTheme(dir.."custom.thm", Colors)
-					themes.now = #themes
-					Options["nowtheme"] = "custom"
-					
-					updateCfg(configDir, Options)
-					
-				end
-				now_number = 0
-			elseif Controls_click(SCE_CTRL_CIRCLE) then
-				Colors[ColorsTable[theme_now]] = old_color
-				now_number = 0
-			end
-		end
-		if now_number > 0 then
-			if Controls_click(SCE_CTRL_UP) then
-				local value = Colors[ColorsTable[theme_now]]
-				local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
-				Colors[ColorsTable[theme_now]] = Color_new(hex2rgb(sub(hex,0,now_number-1)..OptionsColorsNext[sub(hex,now_number,now_number)]..sub(hex,now_number+1,len(hex))))
-				number_delta = -1
-			elseif Controls_click(SCE_CTRL_DOWN) then
-				local value = Colors[ColorsTable[theme_now]]
-				local hex = rgb2hex({Color_getR(value),Color_getG(value),Color_getB(value)})
-				Colors[ColorsTable[theme_now]] = Color_new(hex2rgb(sub(hex,0,now_number-1)..OptionsColorsPrev[sub(hex,now_number,now_number)]..sub(hex,now_number+1,len(hex))))
-				number_delta = 1
-			end
-		end
-		local size = (476/#ColorsTable)
 		for i=1, #ColorsTable do
 			local y = i+16
 			ColorsTable[y] = ColorsTable[y] or 16
-			if theme_now == i then
-				
-				if ColorsTable[y] + dt<32 then
-					
-					ColorsTable[y] = ColorsTable[y] + dt
-					
-					else
-					
-					ColorsTable[y] = 32
-					
-				end
-				else
-				
-				if ColorsTable[y] - dt>16 then
-					
-					ColorsTable[y] = ColorsTable[y] - dt
-					
-					else
-					
-					ColorsTable[y] = 16
-					
-				end
-				
-			end
-			drawRect(x+3, start_y+448, size-2,ColorsTable[y],Colors[ColorsTable[i]])
-			drawRect(x+3, start_y+448+ColorsTable[y]-4, size-2,4,Color_new(255,255,255,100))
-			x = x + size
+			if_now_change(theme_now,i,ColorsTable,y,dt,16,32)
+			drawRect(x+3, start_y+448, color_size-2,ColorsTable[y],Colors[ColorsTable[i]])
+			drawRect(x+3, start_y+448+ColorsTable[y]-4, color_size-2,4,Color_new(255,255,255,100))
+			x = x + color_size
 		end
 		for i=0, 9 do
 			local x = start_x + 120
@@ -1048,8 +902,8 @@ local function theme_screen()
 				
 				tmp = tmp + 1
 				drawRect(x + 1, y + 1, 22, 22, newAlpha(Colors.Tile,inv) )
-				if i==j then Graphics_dIE(x+12,y+12,tile_tex,0,0,square_original_size,square_original_size,0,22/square_original_size,22/square_original_size, newAlpha(Colors.Square,inv)) end
-				if i>0 and j==0 then Graphics_dIE(x+12,y+12,cross_tex,0,0,square_original_size,square_original_size,0,22/square_original_size,22/square_original_size, newAlpha(Colors.Cross,inv)) end
+				if i==j then Graphics_dIE(x+12,y+12,tile_tex,0,0,square_original_size,square_original_size,0,options_square_size,options_square_size, newAlpha(Colors.Square,inv)) end
+				if i>0 and j==0 then Graphics_dIE(x+12,y+12,cross_tex,0,0,square_original_size,square_original_size,0,options_square_size,options_square_size, newAlpha(Colors.Cross,inv)) end
 				if i==0 and j==9 then drawEmptyRect(x-1,y-1,26,26,4,newAlpha(Colors.Frame,inv)) drawEmptyRect(x-1,y-1,26,26,1,newAlpha(Colors.FrameOutline,inv)) drawEmptyRect(x+3,y+3,18,18,1,newAlpha(Colors.FrameOutline,inv))	end
 				x = x + 24
 			end
@@ -1065,40 +919,17 @@ end
 
 local function yes_or_no_screen()
 	local delta = yes_or_no_delta
+	local status = yes_or_no_status
+	local gravity = yes_or_no_gravity
+	yes_or_no_delta,yes_or_no_gravity = return_delta_gravity (status, gravity, delta, rot_yes_or_no)
+	
 	if yes_or_no_status then
 		
 		if Controls_click(SCE_CTRL_CIRCLE) then yes_or_no_status = false yes_or_no_now = 0 end 
 		
-		if delta + yes_or_no_gravity < 1 then
-			
-			yes_or_no_delta = yes_or_no_delta + yes_or_no_gravity
-			yes_or_no_gravity = yes_or_no_gravity + 0.005*dt
-			rot_yes_or_no = 0
-			
-			else
-			
-			yes_or_no_delta = 1
-			yes_or_no_gravity = 0
-			
-		end
-		
-		else
-		
-		if not yes_or_no_status and delta - yes_or_no_gravity > 0 then
-			
-			yes_or_no_delta = yes_or_no_delta - yes_or_no_gravity
-			yes_or_no_gravity = yes_or_no_gravity + 0.005*dt
-			
-			else
-			
-			yes_or_no_delta = 0
-			yes_or_no_gravity = 0
-		end
-		
 	end
 	if delta>0 then
 		drawRect(0,0,960,544,Color_new(0, 0, 0, 100*delta))
-		--FontLib_printExtended(480, 100*yes_or_no_delta+5, "Are you sure?", 5, 5, pie/90*sin(rot_yes_or_no/2), Color_new(0,0,0,100*yes_or_no_delta) )
 		FontLib_printExtended(480, 100*yes_or_no_delta, "Are you sure?", 5, 5, pie/90*sin(rot_yes_or_no/2), Color_new(255,255,255,255*yes_or_no_delta) )
 		local _left,_right, _cross = Controls_click(SCE_CTRL_LEFT), Controls_click(SCE_CTRL_RIGHT), Controls_click(SCE_CTRL_CROSS)
 		if _left or _right then
@@ -1107,37 +938,9 @@ local function yes_or_no_screen()
 		local x = 240
 		for i=1, #yes_or_no_buttons do
 			local size = i + 16
-			local color = Color_new(255,255,255,255*delta)
-			local rot = 0
+			local color, rot = return_color_rotation(yes_or_no_now, i, Color_new(255,216,0,255*delta),Color_new(255,255,255,255*delta), rot_yes_or_no)
 			yes_or_no_buttons[size] = yes_or_no_buttons[size] or 3
-			if yes_or_no_now ~= i then
-				
-				if yes_or_no_buttons[size]>3 then
-					
-					yes_or_no_buttons[size] = yes_or_no_buttons[size] - 0.1*dt
-					
-					elseif yes_or_no_buttons[size]<3 then
-					
-					yes_or_no_buttons[size] = 3
-					
-				end				
-				
-				else
-				
-				if yes_or_no_buttons[size]<4 then
-					
-					yes_or_no_buttons[size] = yes_or_no_buttons[size] + 0.1*dt
-					
-					elseif yes_or_no_buttons[size]>4 then
-					
-					yes_or_no_buttons[size] = 4
-					
-				end
-				
-				color = Color_new(255,216,0,255*delta)
-				rot = pie/60*sin(rot_yes_or_no)
-				
-			end
+			if_now_change(yes_or_no_now,i,yes_or_no_buttons,size,0.1*dt,3,4)
 			FontLib_printExtended(x, 544-100*yes_or_no_delta, yes_or_no_buttons[i], yes_or_no_buttons[size], yes_or_no_buttons[size], rot, color )
 			x = x + 480
 		end
@@ -1288,17 +1091,19 @@ local function drawLevel () --Draws level
 	drawEmptyRect(start_x + frame_x * tile_size, start_y + frame_y * tile_size, frame_size-2, frame_size-2, 4, change_color(newAlpha(Colors.Frame, 255*(1-pause_delta)), pause_delta))
 	drawEmptyRect(start_x + frame_x * tile_size - 1, start_y + frame_y * tile_size - 1, frame_size, frame_size, 1, change_color(newAlpha(Colors.FrameOutline, 255*(1-pause_delta)), pause_delta))
 	drawEmptyRect(start_x + frame_x * tile_size + 3, start_y + frame_y * tile_size + 3, frame_size-8, frame_size-8, 1, change_color(newAlpha(Colors.FrameOutline, 255*(1-pause_delta)), pause_delta))
-
+	
 end
 
 local function drawUpper ()
 	
 	local time = Timer_getTime(gameTimer)
 	local	mt = toDigits(time)
-	drawRect(0,0,170,35,black)
-	drawRect(0,35,150,20,change_color(Color_new(255,0,0), pause_delta))
-	FontLib_printRotated(75,45,"Record: "..level.record,0,white)
-	FontLib_printExtended(85,18,mt,2,2,0,white)
+	drawRect(0,0,170,35,change_color(Colors.Grid, pause_delta))
+	drawRect(0,0,170,35,Color_new(0,0,0,200))
+	drawRect(0,35,150,20,change_color(Colors.Background, pause_delta))
+	drawRect(0,35,150,20,Color_new(255,255,255,50))
+	FontLib_printRotated(75,45,"Record: "..level.record,0,change_color(Colors.SideNumbers, pause_delta))
+	FontLib_printExtended(85,18,mt,2,2,0,change_color(Colors.SideNumbers, pause_delta))
 	if mh_rot < pie then
 		mh_rot = mh_rot + dt * pie/60
 		local TwoTwoFive = 255*(1-sin(mh_rot/2))
@@ -1621,15 +1426,11 @@ while true do
 			end
 			if pause_delta ~= 1 then
 				if options_delta~= 1 then
-				drawNumbers ()
-				end
-				elseif pause_delta==1 then
-				
-				Rotations ()
-				
+					drawNumbers ()
+				end				
 			end
 		end
-		
+		Rotations ()
 		drawUpper ()
 		pause_screen ()
 		if pause_delta > 0 then
@@ -1639,14 +1440,14 @@ while true do
 			theme_screen ()
 		end
 		yes_or_no_screen ()
-			
+		
 		elseif state == 3 then
 		
 		if step == 1 then
 			
 			Screen.clear (Colors.Background)
 			stepOne ()
-		
+			
 		end
 		
 		progressBar ()
@@ -1691,4 +1492,4 @@ while true do
 	oldpad = pad
 	newTime = Timer_getTime (DeltaTimer)
 	
-end
+end			
