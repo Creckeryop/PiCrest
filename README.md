@@ -6,6 +6,4 @@ Picross game for PS Vita
 3. Done
 #### Progress:
 ![](screenshots/game_screenshot.jpg)<br>
-![](screenshots/pause_screenshot.jpg)<br>
-
 ![](screenshots/theme_screenshot.jpg)

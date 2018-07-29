@@ -1,0 +1,29 @@
+1	{"Theme","Miss","Animation","Language: English","Reset saves","Back"},
+2	{"Back","Change option"}
+3	{"Select","Back"}
+4	{"Change color","Back","Scroll"}
+5	{"Accept","Cancel","Change color"}
+6	{"Play", "Create", "Options", "Exit"}
+7	{"Select"}
+8	{"Continue", "Options", "Main menu"}
+9	{"Select","Back to game"}
+10	{"Close folder","Go to Standart levels folder","Back"}
+11	{"Open folder","Go to Standart levels folder","Back"}
+12	{"Play level","Go to Standart levels folder","Back"}
+13	{"Close folder","Go to Custom levels folder","Back"}
+14	{"Open folder","Go to Custom levels folder","Back"}
+15	{"Play level","Go to Custom levels folder","Back"}
+16	{"Go to Custom levels folder","Back"}
+17	"PiCrest"
+18	"the nonogram game"
+19	{"Name","Width","Height","Create"}
+20	{"Change","Back"}
+21	{"Change","Back"}
+22	{"Select","Back"}
+23	{"Show/Hide palette","Paint square","Go to map mode","Save"}
+24	{"Add/Delete square","Go to paint mode","Save"}
+25	{"Yes", "No"}
+26	"Are you sure?"
+27	{"Select","Cancel"}
+28	{"Cancel"}
+29	{"rescale", "fade", "rotating", "off"}
