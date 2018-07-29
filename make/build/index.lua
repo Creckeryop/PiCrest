@@ -711,7 +711,7 @@ local function menu_screen()
 		if not launch then
 			down_screen (menu_now, menu_delta, menu_buttons,{})
 			down_buttons (menu_delta,LOCALIZATION.MENU.DOWN_BUTTONS,{ crossbut_tex})
-			FontLib_print(734, 800 - 272*menu_delta,"PiCrest v1.0 by @creckeryop",white)
+			FontLib_print(726, 800 - 272*menu_delta,"PiCrest v1.01 by @creckeryop",white)
 		end
 		return true
 	end
@@ -1048,7 +1048,7 @@ local function lselection_screen()
 			lselection_now, lselection_startI, lselection_oldStartI = 1, 1, 1
 
 			end
-			if lselection_now~=0 then
+			if lselection_now~=0 and #systemLevelFolder~=0 then
 				if PAD_CROSS and systemLevelFolder[lselection_now].dir then
 					if systemLevelFolder[lselection_now].name == "..." then
 						now_path = sub(now_path,1,len(now_path)-1)
@@ -1726,11 +1726,20 @@ while true do
 	if isCreate and head_delta==1 and yes_or_no_status then
 		if PAD_CROSS and yes_or_no_now==1 then
 			local dtTime = Timer.getTime(DeltaTimer)
+			local make = false
+			for i=1, #create_table.empty do
+				if create_table.empty[i]==1 then make = true break end
+			end
+			if make then
 			convertToPCL()
 			yes_or_no_status = false
 			menu_status = true
 			menu_delta = 1
 			Timer.setTime(DeltaTimer, dtTime)
+			else
+			yes_or_no_status = false
+			
+			end
 			elseif PAD_CROSS then
 			yes_or_no_status = false
 		end
