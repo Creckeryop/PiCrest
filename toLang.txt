@@ -27,3 +27,4 @@
 27	{"Select","Cancel"}
 28	{"Cancel"}
 29	{"rescale", "fade", "rotating", "off"}
+30	"Saving"

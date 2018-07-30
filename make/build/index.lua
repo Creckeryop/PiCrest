@@ -219,6 +219,11 @@ local LOCALIZATION = {
 	},
 	ANIMATION = {
 		{"rescale", "fade", "rotating", "off"}, {"uvelixenie","skrytie","vrawenie", "net"},{"Resc|lere", "Marc^scere", "Rotatio", "Nihil"}
+	},
+	SAVING = {
+	"Saving",
+	"Sohranenie",
+	"Memoria"
 	}
 }
 local Libs = {"fnt", "pcl", "cfg", "thm"}
@@ -711,7 +716,7 @@ local function menu_screen()
 		if not launch then
 			down_screen (menu_now, menu_delta, menu_buttons,{})
 			down_buttons (menu_delta,LOCALIZATION.MENU.DOWN_BUTTONS,{ crossbut_tex})
-			FontLib_print(726, 800 - 272*menu_delta,"PiCrest v1.01 by @creckeryop",white)
+			FontLib_print(726, 800 - 272*menu_delta,"PiCrest v1.02 by @creckeryop",white)
 		end
 		return true
 	end
@@ -2136,7 +2141,9 @@ while true do
 		drawRect(0,0,960,544,newAlpha(black,exit_delta*255))
 	end
 	drawRect(0,0,960,544,Color_new(0,0,0,255*hide))
-	if hide>0 and isRecord then FontLib_printExtended(480,272,"Saving",3,3,0,Color_new(255,255,255,255*hide)) end
+	if hide>0 and isRecord then 
+		FontLib_printExtended(480,272,LOCALIZATION.SAVING[lng],3,3,0,Color_new(255,255,255,255*hide),lng) 
+	end
 	Graphics.termBlend()
 	--if PAD_SELECT then FontLib_close () FTP = FTP + 1	end
 	Screen.waitVblankStart ()
