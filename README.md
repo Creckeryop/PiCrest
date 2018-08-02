@@ -5,5 +5,6 @@ Picross game for PS Vita
 2. Click build.bat
 3. Done
 #### Progress:
-![](screenshots/game_screenshot.jpg)<br>
-![](screenshots/theme_screenshot.jpg)
+![](screenshots/create.png)<br>
+![](screenshots/play.png)<br>
+![](screenshots/customize.png)
