@@ -1,3 +1,4 @@
+DEVMODE, DEFDIRECTORY = false, "app0:"
 local Color_new = Color.new
 local Graphics_drawImage = Graphics.drawImage
 local Graphics_drawImageExtended = Graphics.drawImageExtended
@@ -73,7 +74,7 @@ color_size = 476/#ColorsTable
 Options = {nowtheme = "default", animation = "rotating", language = 1, mistakes = 1, cleared = 0}
 Options.fps = nil
 if System.getLanguage() == 08 then Options.language = 2 end
-appDir = "ux0:data/BL/"
+appDir = DEFDIRECTORY
 datDir = appDir.."data/"
 libDir = datDir.."lib/"
 lvlDir = datDir.."lvl/"
@@ -2315,7 +2316,7 @@ while true do
 		FontLib_printExtended(480,272,LOCALIZATION.SAVING[lng],3,3,0,Color_new(255,255,255,255*hide),lng)
 	end
 	Graphics.termBlend()
-	if PAD_SELECT then FontLib_close () FTP = FTP + 1	end
+	if DEVMODE and PAD_SELECT then FontLib_close () FTP = FTP + 1	end
 	Screen.waitVblankStart ()
 	Screen.flip ()
 	newTime = Timer.getTime (DeltaTimer)
