@@ -241,5 +241,44 @@ LOCALIZATION = {
 	"SCORE",
 	"OXKI",
 	"SUMMA"
+	},
+	TUTORIAL = {
+		{	"Number 5 means that there is a line with length equals 5",
+			"Nomer 5 oznaxaet xto zdes' est' lini[ dlino` 5",
+			""
+		},
+		{	"Level have width equals 5, so you can just place all the line with squares",
+			"Uroven' imeet wirinu 5, tak xto mojno zapolnit' liniq polnost'q kvadratami",
+			""
+		},
+		{	"Here you can see 1 and 3, that means that there is 2 lines with length 1 and 3 in series",
+			"Zdes' vidno nomera 1 i 3, ]to oznaxaet xto zdes' 2 linii dlinami 1 i 3 sootvetstveno",
+			""
+		},
+		{	"and that means that there must be space between the lines",
+			"i ]to oznaxaet xto doljen byt' kako`-libo otstup mejdu lini[mi",
+			""
+		},
+		{	"There is 3 ways of placing squares in that line",
+			"Est' 3 varianta pomestit' kvadraty v ]tu liniq",
+			""
+		},
+		{	"In 3 ways you can see that field #3 is always filled with a square",
+			"Vo vseh treh variantah vidno xto [xe`ka #3 vsegda zapolena",
+			""
+		},
+		{	"You can make a conclusion, that there is must to be square in 3rd field",
+			"Iz-za ]togo mojno sdelat' vyvod, xto ]xe`ka #3 doljna byt' zapolnena",
+			""
+		},
+		{	"Enjoy the game",
+			"Naslajda`tes' igro`",
+			""
+		}
+	},
+	PERFECT ={
+	"Perfect",
+	"Ideal'no",
+	"Perfecte"
 	}
 }

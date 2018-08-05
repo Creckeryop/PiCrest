@@ -88,12 +88,23 @@ for i = 1, #Libs do dofile(libDir..Libs[i]..".lua") end
 Animations = LOCALIZATION.ANIMATION
 Animations.now = 1
 local openPCL, updatePCL, createPCL, getTSPCL = PCL_Lib.open, PCL_Lib.update, PCL_Lib.create, PCL_Lib.getToSize
+if not System.doesDirExist	(dir.."tutorial/") 	then System.createDirectory (dir.."tutorial/") firstLaunch = true	end
 if not System.doesDirExist  (dir)				then System.createDirectory (dir)									end
 if not System.doesDirExist  (clvlDir)			then System.createDirectory (clvlDir)								end
 if not System.doesFileExist (dir.."custom.thm")	then MakeTheme(dir.."custom.thm", Colors)							end
 if not System.doesFileExist (dbDir) 			then execQuery("CREATE TABLE REC(path varchar(255),ms Bigint);")	end
 local database_p = execQuery("SELECT path FROM [REC];")
 local database_m = execQuery("SELECT ms FROM [REC];")
+for i=1, #database_m do
+	database_m[i].ms = tonumber(database_m[i].ms)
+end
+if firstLaunch then
+	tutorial={count=1}
+	for i=1, 3 do
+		tutorial[i] = Graphics.loadImage(datDir.."tutorial/"..i..".png")
+		tutorial[i.."d"],tutorial[i.."g"] = 0,0
+	end
+end
 local newVar = true
 local tex_but, tile_tex, cross_tex, padlr_tex, padud_tex, squarebut_tex, crossbut_tex,trianglebut_tex, circlebut_tex = Graphics.loadImage(txrDir.."button.png"), Graphics.loadImage(txrDir.."tile.png"), Graphics.loadImage(txrDir.."cross.png"), Graphics.loadImage(txrDir.."padlr.png"),Graphics.loadImage(txrDir.."padud.png"), Graphics.loadImage(txrDir.."squarebut.png"), Graphics.loadImage(txrDir.."crossbut.png"), Graphics.loadImage(txrDir.."trianglebut.png"), Graphics.loadImage(txrDir.."circlebut.png")
 local pen_tex = Graphics.loadImage(txrDir.."pen.png")
@@ -118,19 +129,32 @@ local LINE_VERTICAL, LINE_HORIZONTAL = true, false
 local now_path = lvlDir
 local fileFormat = function (name, format)	return sub(name,len(name)-3,len(name)) == format end
 local hint_status,hint_gravity,hint_delta,hint_now = false,0,0,0
+local allLevels = 0
+local clrLevels = 0
+local function getRecord (p)
+	local r = 0
+	for i=1, #database_p do	if database_p[i].path == p then	r = database_m[i].ms break	end	end
+	return r
+end
 local function scan_folder(_path)
+	Timer.pause(DeltaTimer)
+	allLevels = 0
+	clrLevels = 0
 	local tableA,final,k = System.listDirectory(_path),{},1
 	if _path ~= lvlDir and _path ~= clvlDir then final[1] = {name="...", dir = true} k = 2 end
 	for i=1, #tableA do
 		if fileFormat(tableA[i].name,".pcl") then
 			final[#final+1] = {name = sub(tableA[i].name,1,len(tableA[i].name) - 4), dir = false}
 			final[#final].realname, final[#final].size = getTSPCL(_path..tableA[i].name)
+			allLevels = allLevels + 1
+			if getRecord(_path..tableA[i].name)~=0 then clrLevels = clrLevels + 1 end
 			elseif tableA[i].directory then
 			table.insert(final, k,{name = tableA[i].name.."/", dir = true})
 			k = k + 1
 		end
 	end
-	table.sort(final, function(a,b) return a.name<b.name and a.dir==b.dir end)
+	--table.sort(final, function(a,b) return a.name<b.name and a.dir==b.dir end)
+	Timer.resume(DeltaTimer)
 	return final
 end
 local function Controls_click(BUTTON) return Controls.check(pad, BUTTON) and not Controls.check(oldpad, BUTTON) end
@@ -171,11 +195,7 @@ local function updateAllData ()
 	for i=1, #Animations[1] do if Animations[1][i] == Options.animation then Animations.now = i break end end
 	updateCfg (cnfgDir, Options)
 end
-local function getRecord (p)
-	local r = 0
-	for i=1, #database_p do	if database_p[i].path == p then	r = database_m[i].ms break	end	end
-	return r
-end
+
 local function updateRecord (p, r)
 	local id,c,t,db = #database_p + 1,"UPDATE [REC] SET ms = "..r.." WHERE path = '"..p.."';",true
 	for i=1, #database_p do
@@ -191,6 +211,7 @@ local function updateRecord (p, r)
 	Database.close(db)
 end
 local function toDigits (x)
+	if x<0 then x = -x end
 	local mt1000 = floor(x / 1000)
 	local mt60 = floor(mt1000 / 60)
 	local h = floor(mt60 / 60)
@@ -205,7 +226,6 @@ local function toDigits (x)
 	if ms/100<1 then ms="0"..ms end
 	return h..":"..m..":"..s.."."..ms
 end
-
 local function ResetData ()
 	System.deleteFile(dbDir)
 	execQuery("CREATE TABLE REC(path varchar(255),ms Bigint);")
@@ -292,6 +312,12 @@ local function Update ()
 	frame_old_x,frame_old_y = 0, 0
 	level.empty = {}
 	level.recInms = getRecord(level.path)
+	if level.recInms<0 then
+	level.perfect = true
+	level.recInms = - level.recInms
+	else
+	level.perfect = false
+	end
 	level.record = toDigits(level.recInms)
 	level.cross = {}
 	level.square = {}
@@ -303,9 +329,7 @@ local function Update ()
 	isRecord = nil
 	local tmp = 0
 	for i = 1, level.height do
-
 		for j = 1, level.width do
-
 			tmp = tmp + 1
 			level.empty[tmp] = 0
 			level.square[tmp] = 0
@@ -313,15 +337,10 @@ local function Update ()
 			level.pen[tmp] = false
 			level.penB[tmp] = 0
 			if level.map[tmp] then
-
 				level.allBlocks = level.allBlocks + 1
-
 			end
-
 		end
-
 	end
-
 	updateStacks()
 	Timer.reset(gameTimer)
 	Timer.pause(gameTimer)
@@ -402,6 +421,27 @@ local Color_pick, Colors_creater = Color_new(0,0,0),{
 local color_now, color_r, color_g, color_b, color_h, color_s, color_v, color_a = 1, 0, 0, 0, 0, 0, 0,255
 local cleared,cleared_gravity = 0, 0
 local preview = {d=0,s=false,g=0,lvl={}}
+local function parseLevel()
+	if not menu_status and not isColorize and level.nowBlocks == level.allBlocks and newVar then
+		newVar = false
+		if checkLevel() then
+			Timer.pause(gameTimer)
+			dontPress = true
+			if not cleared_status then cleared_status = true Options.cleared = Options.cleared + 1 updateCfg(cnfgDir, Options) end
+			if isRecord == nil then
+				local time = nowGameTimer
+				if time == 0 then time = 1 end
+				if tonumber(level.recInms) == 0 or tonumber(level.recInms) > time then
+					level.recInms = time
+					isRecord = true
+					else
+					isRecord = false
+				end
+				if tile_nowAdd==1 then level.perfect = true end
+			end
+		end
+	end
+end
 local function return_delta_gravity(status, gravity, delta, rot, add)
 	if status then
 		if delta+gravity < 1 then
@@ -472,10 +512,11 @@ local function down_screen (now, delta, table, lock, ...)
 	end
 end
 
-local function down_buttons (delta, tableNames, tableTex)
+local function down_buttons (delta, tableNames, tableTex, t)
 	if delta==1 then
 		local x, y = 16, 800 - 272*delta
 		for i=1, #tableNames[lng] do
+			if t then drawRect(x,y,tableTex[#tableNames[lng]-i+1]:len()*14,26,shadow) end
 			Graphics_drawRotateImage(x, y, tableTex[#tableNames[lng]-i+1], 0)
 			FontLib_print(x + 16, y - 6,"- "..tableNames[lng][#tableNames[lng]-i+1], white, lng)
 			y = y - 26
@@ -496,6 +537,14 @@ local function head_screen ()
 		local score = Options.cleared
 		for i=len(score), 7 do score="0"..score end
 		FontLib_print(16,y-256,LOCALIZATION.SCORE[lng].." : "..score,white,lng)
+		if (lselection_delta>0 or lselection_status) and now_path~=lvlDir then
+		local prcntge = math.floor(clrLevels/(allLevels/100))
+			if prcntge and prcntge==prcntge then
+				drawEmptyRect(880-53,lselection_delta*272-272+20,106,23,2,white)
+				drawRect(880-50,lselection_delta*272-272+23,prcntge,17,white)
+				FontLib_print(880-50+0.69*prcntge,lselection_delta*272-272+24,prcntge,white,0)
+			end
+		end
 	end
 end
 
@@ -911,7 +960,8 @@ local function lselection_screen()
 						if not systemLevelFolder[lselection_now].dir then
 						preview.lvl = openPCL(now_path..systemLevelFolder[lselection_now].name..".pcl")
 						preview.r = nil
-						local record = tonumber(getRecord(now_path..systemLevelFolder[lselection_now].name..".pcl"))
+						local record = getRecord(now_path..systemLevelFolder[lselection_now].name..".pcl")
+						if record<0 then record = -record end
 						if record>0 then
 							if record>3600000 then
 								preview.r = false
@@ -923,7 +973,8 @@ local function lselection_screen()
 					else
 						preview.lvl = openPCL(now_path..systemLevelFolder[lselection_now].name..".pcl")
 						preview.r = nil
-						local record = tonumber(getRecord(now_path..systemLevelFolder[lselection_now].name..".pcl"))
+						local record = getRecord(now_path..systemLevelFolder[lselection_now].name..".pcl")
+						if record<0 then record = -record end
 						if record>0 then
 							if record>3600000 then
 								preview.r = false
@@ -941,7 +992,8 @@ local function lselection_screen()
 						preview.s = true
 						preview.lvl = openPCL(now_path..systemLevelFolder[lselection_now].name..".pcl")
 						preview.r = nil
-						local record = tonumber(getRecord(now_path..systemLevelFolder[lselection_now].name..".pcl"))
+						local record = getRecord(now_path..systemLevelFolder[lselection_now].name..".pcl")
+						if record<0 then record = -record end
 						if record>0 then
 							if record>3600000 then
 								preview.r = false
@@ -995,33 +1047,18 @@ local function lselection_screen()
 						else
 							local tempDt = Timer.getTime (DeltaTimer)
 							local size = math.random(1,3)*5
-							local dots = math.random(size+1,size*(size-1))
+							local dots = math.random(size*2,size*(size-1))
 							level = {height = size, width = size, recInms = 0, record = 0, map = {},pmap = {},name = "Random"}
-							::REROLL::
 							local tmp = 1
 							for i=1, level.height do
 								for j=1, level.width do
 									level.pmap[tmp] = Color_new(math.random(1,255),math.random(1,255),math.random(1,255))
-									if dots>0 then
-										if math.random(1,2)==1 then
-											level.map[tmp] = true
-											dots = dots - 1
-										end
-									end
 									tmp = tmp + 1
 								end
 							end
-							if dots>0 then
-								goto REROLL
-							end
-							tmp = 1
-							for i=1, level.height do
-								for j=1, level.width do
-									if level.map[tmp] then
-										level.pmap[tmp] = black
-									end
-									tmp = tmp + 1
-								end
+							while dots>0 do
+								local rand = math.random(1,size*size)
+								if not level.map[rand] then level.map[rand] = true dots = dots - 1 level.pmap[rand] = black end
 							end
 							lselection_status = false
 							menu_status = false
@@ -1035,10 +1072,10 @@ local function lselection_screen()
 				end
 			end
 			elseif lselection_delta==0 and not launch then
-			lselection_now, lselection_startI, lselection_oldStartI = 0, 1, 1
-			local delta = Timer.getTime(DeltaTimer)
-			systemLevelFolder = scan_folder(now_path)
-			Timer.setTime(DeltaTimer,delta)
+			--lselection_now, lselection_startI, lselection_oldStartI = 0, 1, 1
+			--local delta = Timer.getTime(DeltaTimer)
+			--systemLevelFolder = scan_folder(now_path)
+			--Timer.setTime(DeltaTimer,delta)
 		end
 		local m,y = 272 * lselection_delta
 		y = 600 - m
@@ -1089,7 +1126,7 @@ local function lselection_screen()
 				local tmp = 1
 				local skip = 6
 				if preview.lvl.height==10 then skip = 9 elseif preview.lvl.height==5 then skip = 18 end
-				local x_s,y_p = 100*preview.d-90,y
+				local x_s,y_p = 100*preview.d-90,y-20
 				drawEmptyRect(x_s-2,y_p-2,94,94,1,white)
 				x_s = x_s +45-preview.lvl.width*skip/2
 				y_p = y_p +45-preview.lvl.height*skip/2
@@ -1106,7 +1143,7 @@ local function lselection_screen()
 							end
 							y_p = y_p + skip
 						end
-						FontLib_printExtended(x_s+preview.lvl.width*skip/2+3,y+45,"?",3,3,0,black)
+						FontLib_printExtended(x_s+preview.lvl.width*skip/2+3,y+25,"?",3,3,0,black)
 						elseif preview.r==true then
 						for i=1, preview.lvl.height do
 							local x = x_s
@@ -1136,6 +1173,7 @@ local function lselection_screen()
 				end
 			end
 			local od = true
+			
 			for i=lselection_startI, lselection_startI+4 do
 				if systemLevelFolder[i] then
 					local text = systemLevelFolder[i].name
@@ -1145,10 +1183,11 @@ local function lselection_screen()
 						text = string.gsub(text, "level",LOCALIZATION.LEVEL[lng].." - ")
 						l = lng
 					end
-					FontLib_printRotated(170, 610 - m, LOCALIZATION.INFO[lng],0,white,lng)
+					FontLib_printRotated(170, 610 - m-20, LOCALIZATION.INFO[lng],0,white,lng)
 					if lselection_now == i then
 						if not systemLevelFolder[i].dir then
-							local rec, name = getRecord(now_path..systemLevelFolder[i].name..".pcl")
+							local rec, name,perfect = getRecord(now_path..systemLevelFolder[i].name..".pcl"),false
+							if rec < 0 then perfect = true end
 							if rec == 0 then
 								name = "???"
 								rec = LOCALIZATION.NO_RECORD[lng]
@@ -1157,9 +1196,10 @@ local function lselection_screen()
 								rec =  toDigits(rec)
 							end
 							local clr, dt = newAlpha(white,255*number_p_delta), 680-m -40*number_p_delta
-							FontLib_printRotated(170, dt, name,0, clr)
-							FontLib_printRotated(170, dt + 20, systemLevelFolder[i].size,0, clr)
-							FontLib_printRotated(170, dt + 40, rec,0, clr,lng)
+							FontLib_printRotated(170, dt - 20, name,0, clr)
+							FontLib_printRotated(170, dt , systemLevelFolder[i].size,0, clr)
+							FontLib_printRotated(170, dt + 20, rec,0, clr,lng)
+							if perfect then FontLib_printExtended(140, 640-m + 55, LOCALIZATION.PERFECT[lng],2,2,0, newAlpha(Color_new(255,221,44),255*number_p_delta),lng) end
 						else
 							local text = LOCALIZATION.FOLDER[lng]
 							if systemLevelFolder[i].name == "..." then text = LOCALIZATION.GO_BACK[lng] end
@@ -1483,6 +1523,25 @@ local function drawLevel ()
 						end
 						checkStacks(height-1,width-1)
 					end
+					local tmp = 1
+					for i=0, level.height-1 do
+						for j=0, level.width-1 do
+							if tile_stackL[i][0]==0 then
+								level.empty[tmp] = -1
+							end
+							tmp = tmp + 1
+						end
+					end
+					for i=0, level.width-1 do
+						for j=0, level.height-1 do
+							if tile_stackU[i][0]==0 then
+								level.empty[j*level.width+1+i] = -1
+							end
+						end
+					end
+					newVar = true
+					parseLevel()
+					PAD_CROSS = false
 					dontPress = true
 				end
 			end
@@ -1624,23 +1683,7 @@ local function Controls_frame ()
 								level.pen[tmp] = false
 							end
 						end
-						if not menu_status and level.nowBlocks == level.allBlocks and newVar then
-							newVar = false
-							if checkLevel() then
-								Timer.pause(gameTimer)
-								dontPress = true
-								if not cleared_status then cleared_status = true Options.cleared = Options.cleared + 1 updateCfg(cnfgDir, Options) end
-								if isRecord == nil then
-									local time = nowGameTimer
-									if tonumber(level.recInms) == 0 or tonumber(level.recInms) > time then
-										level.recInms = time
-										isRecord = true
-										else
-										isRecord = false
-									end
-								end
-							end
-						end
+						parseLevel()
 						else
 						tile_storeNum = level.empty[tmp]
 						tile_storePen = level.pen[tmp]
@@ -1843,6 +1886,47 @@ end
 
 local start_scene = true
 local hide,hide_g = 0,0
+
+while firstLaunch do
+	lng = Options.language
+	dt = newTime / 8
+	pad = Controls.read ()
+	padUpdate()
+	Timer.reset (DeltaTimer)
+	Graphics.initBlend ()
+	Screen.clear()
+	head_screen()
+	for i=1, 3 do
+		tutorial[i.."d"],tutorial[i.."g"] = return_delta_gravity(tutorial.count>=i, tutorial[i.."g"],tutorial[i.."d"])
+		local m = down_screen(1,tutorial[i.."d"],{{},{},{}})
+		if m then
+			Graphics.drawImage(0,544-m,tutorial[i])
+			if i==1 then
+				FontLib_printRotated(480,544-m+50,LOCALIZATION.TUTORIAL[1][lng],0,white,lng)
+				FontLib_printRotated(480,544-m+67,LOCALIZATION.TUTORIAL[2][lng],0,white,lng)
+				elseif i==2 then
+				FontLib_printRotated(480,544-m+50,LOCALIZATION.TUTORIAL[3][lng],0,white,lng)
+				FontLib_printRotated(480,544-m+67,LOCALIZATION.TUTORIAL[4][lng],0,white,lng)
+				elseif i==3 then
+				FontLib_printRotated(650,544-m+50,LOCALIZATION.TUTORIAL[5][lng],0,white,lng)
+				FontLib_printRotated(650,544-m+67,LOCALIZATION.TUTORIAL[6][lng],0,white,lng)
+				FontLib_printRotated(650,544-m+84,LOCALIZATION.TUTORIAL[7][lng],0,white,lng)
+				FontLib_printExtended(650,544-m+220,LOCALIZATION.TUTORIAL[8][lng],2,2,0,white,lng)
+			end
+		end
+	end
+	if PAD_CROSS then tutorial.count = tutorial.count + 1 end
+	rot_pause = rot_pause + pie/60 * dt
+	if rot_pause > all_max then rot_pause = rot_pause - all_max end
+	if tutorial.count == 4 then firstLaunch = false end
+	Graphics.termBlend()
+	if DEVMODE and PAD_SELECT then FontLib_close () FTP = FTP + 1	end
+	Screen.waitVblankStart ()
+	Screen.flip ()
+	newTime = Timer.getTime (DeltaTimer)
+	oldpad = pad
+end
+
 while true do
 	if not (head_status or cleared_status or isCreate) then
 		nowGameTimer = Timer.getTime(gameTimer)
@@ -2272,6 +2356,7 @@ while true do
 			FontLib_printExtended(484,594-100*cleared,LOCALIZATION.RECORD[lng]..":"..level.record,3,3,0,Colors.Text,lng)
 		end
 		local time = nowGameTimer
+		if time == 0 then time = 1 end
 		local text = LOCALIZATION.TIME[lng]..":"..toDigits(time)
 		FontLib_printExtended(482,624-100*cleared,text,2,2,0,Colors.Text,lng)
 		if PAD_CROSS then
@@ -2281,7 +2366,21 @@ while true do
 			if isRecord then
 				Timer.pause(DeltaTimer)
 				if now_path~=lvlDir then
-					updateRecord(now_level_path, time)
+					if level.perfect then
+						updateRecord(now_level_path, -time)
+					else
+						updateRecord(now_level_path, time)
+					end
+				end
+				Timer.resume(DeltaTimer)
+				else
+				Timer.pause(DeltaTimer)
+				if now_path~=lvlDir then
+					if level.perfect then
+						updateRecord(now_level_path, -level.recInms)
+					else
+						updateRecord(now_level_path, level.recInms)
+					end
 				end
 				Timer.resume(DeltaTimer)
 			end
@@ -2307,6 +2406,7 @@ while true do
 			Timer.resume(gameTimer)
 		end
 	end
+	
 	if exit_delta>0 or exit_status then
 		exit_delta, exit_gravity = return_delta_gravity(exit_status, exit_gravity, exit_delta)
 		drawRect(0,0,960,544,newAlpha(black,exit_delta*255))
