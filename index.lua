@@ -573,7 +573,7 @@ local function menu_screen()
 		if not launch then
 			down_screen (menu_now, menu_delta, menu_buttons,{})
 			down_buttons (menu_delta,LOCALIZATION.MENU.DOWN_BUTTONS,{crossbut_tex})
-			FontLib_print(718, 800 - 272*menu_delta,"PiCrest v1.1 by @creckeryop",white)
+			FontLib_print(718, 800 - 272*menu_delta,"PiCrest v1.11 by @creckeryop",white)
 		end
 		return true
 	end
