@@ -14,7 +14,7 @@ Nonogram game for PSVita<br>
 * <kbd>Circle</kbd> - place cross
 * <kbd>Square</kbd> - pencil
 ## How to update if vpk isn't latest:
-Just copy changed files to `ux0:app/PICRESTGM`
+Just copy changed files to `ux0:app/PICRESTGM/`
 ## Building:
 To build the game open `build.bat`, it will create PiCrest.vpk file, that can be installed on your PSVita
 ## Download
