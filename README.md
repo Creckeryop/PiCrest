@@ -1,12 +1,12 @@
 # PiCrest
 Nonogram game for PSVita<br>
 <img src="https://img.shields.io/badge/lua-v5.2.4-green.svg">
-<img src="https://img.shields.io/badge/release-v1.1-blue.svg">
+<img src="https://img.shields.io/badge/release-v1.11-blue.svg">
 ## Features:
 * Level Editor with palette (R,G,B,H,S,V,A(alpha))
 * Themes Editor
 * Level Generator
-* 75 Levels
+* 93 Levels
 * Multilanguage support (English, Russian, Latina(thanks to overmind98))
 ## How to play:
 * <kbd>DPAD</kbd> - Move
