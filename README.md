@@ -1,6 +1,6 @@
 ![logo](https://user-images.githubusercontent.com/25725992/43686295-59ed2c32-98dc-11e8-90d6-0b241bbf147d.png)
 # PiCrest
-Nonogram game for PSVita<br>
+Nonogram game for PlayStation Vita<br>
 <img src="https://img.shields.io/badge/lua-v5.2.4-green.svg">
 <img src="https://img.shields.io/badge/release-v1.11-blue.svg"><br>
 <img src="screenshots/screenshots.gif"><br>
