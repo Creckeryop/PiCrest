@@ -1,54 +1,54 @@
-1	{"テーマ","ミス","アニメーション","言語:英語","Reset saves","戻る"},
+1	{"テーマ","ミス","アニメーション","言語:英語","保存をリセット","戻る"},
 2	{"戻る","設定を変更"},
-3	{"Select","Back"},
-4	{"Change color","Back","Scroll"},
-5	{{"Accept","Cancel","Change color"},
-6	{"プレイ", "お絵かきロジックを作る", "設定", "ホーム画面に戻る"},
-7	{"Select"},
-8	{"Continue", "Options", "Main menu"},
-9	{"Select","Back to game"},
-10	{"Close folder","Go to Standart levels folder","Back"},
-11	{"Open folder","Go to Standart levels folder","Back"},
-12	{"Play level","Show/Hide preview","Go to Standart levels folder","Back"},
-13	{"Go to Standart levels folder","Back"},
-14	{"Close folder","Go to Custom levels folder","Back"},
-15	{"Open folder","Go to Custom levels folder","Back"},
-16	{"Play level","Show/Hide preview","Go to Custom levels folder","Back"},
-17	{"Go to Custom levels folder","Back"},
+3	{"選択","戻る"},
+4	{"色を変更","戻る","スクロール"},
+5	{{"承認","キャンセル","色を変更"},
+6	{"プレイ", "お絵かきロジックを作成", "設定", "ホーム画面に戻る"},
+7	{"選択"},
+8	{"続ける", "設定", "メインメニュー"},
+9	{"選択","ゲームに戻る"},
+10	{"フォルダーを閉じる","スタンダートレベルフォルダーに移動","戻る"},
+11	{"フォルダーを開く","スタンダートレベルフォルダーに移動","戻る"},
+12	{"レベルをプレイ","プレビューの表示/非表示","スタンダートレベルフォルダーに移動","戻る"},
+13	{"スタンダートレベルフォルダーに移動","戻る"},
+14	{"フォルダーを閉じる","カスタムレベルフォルダーに移動","戻る"},
+15	{"フォルダーを開く","カスタムレベルフォルダーに移動","戻る"},
+16	{"レベルをプレイ","プレビューの表示/非表示","カスタムレベルフォルダーに移動","戻る"},
+17	{"カスタムレベルフォルダーに移動","戻る"},
 19	"PiCrest",
-20	"the nonogram game",
-21	{"名前","Width","Height","作成},
+20	"お絵かきロジックゲーム",
+21	{"名前","幅","高さ","作成},
 22	{"変更","戻る"},
-23	{"Change","Back"},
+23	{"変更","戻る"},
 24	{"選択","戻る"},
-25	{"Undo","Redo","Show/Hide palette","Paint square","Go to map mode","Save"},
-26	{"Add/Delete square","Go to paint mode","Save"},
-27	{"Yes", "No"},
+25	{"やり直し","元に戻す","パレットの表示/非表示","正方形をペイント","マップモードに移動","保存"},
+26	{"正方形の追加/削除","ペイントモードに移動","保存"},
+27	{"はい", "いいえ"},
 28	"本当にリセットしてよろしいですか?",
-29	{"Select","Cancel"}
-30	{"Cancel"},{"Otmena"}
-31	{"rescale", "fade", "rotating", "off"},
-32	"Saving",
-33	"Make level",
-34	"Color level",
-35	"Time Over",
-36	"Cleared",
-37	"Record",
-38	"NEW RECORD",
-39	"Time",
-40	"Info:",
-41	"No Record",
-42	"Folder",
-43	"Go Back",
-44	"Use Hint?",
-45	{"簡単", "普通", "難しい", "Generate"},
-46	"Level",
-47	"SCORE",
-48	"Number 5 means that there is a line with length equals 5" 
-49	"Level have width equals 5, so you can just place all the line with squares" 
-50	"Here you can see 1 and 3, that means that there is 2 lines with length 1 and 3 in series" 
-51	"and that means that there must be space between the lines"
-52	"There is 3 ways of placing squares in that line"
-53	"In 3 ways you can see that field #3 is always filled with a square" 
-54	"You can make a conclusion, that there is must to be square in 3rd field" 
-55	"Enjoy the game"
+29	{"選択","キャンセル"}
+30	{"キャンセル"},{"キャンセル"}
+31	{"再スケール", "フェード", "回転", "オフ"},
+32	"保存中",
+33	"レベルを上げる",
+34	"カラーレベル",
+35	"時間切れ",
+36	"クリア",
+37	"記録",
+38	"新記録",
+39	"タイム",
+40	"説明:",
+41	"記録なし",
+42	"フォルダー",
+43	"戻る",
+44	"ヒントを使用しますか？",
+45	{"簡単", "普通", "難しい", "生成"},
+46	"レベル",
+47	"スコア",
+48	"数字の5は長さが5に等しい線があることを意味します" 
+49	"レベルの幅は5に等しいので、すべての線を正方形で配置できます" 
+50	"ここでは1と3を見ることができます。これは、長さが1と3の2本の線が直列になっていることを意味します。" 
+51	"つまり、線の間にスペースが必要です"
+52	"その線に正方形を配置する3つの方法があります"
+53	"3つの方法で、フィールド#3が常に正方形で埋められていることがわかります。" 
+54	"あなたは結論を出すことができます、3番目のフィールドには正方形でなければなりません" 
+55	"PiCrestをお楽しみください！"
