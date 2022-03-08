@@ -1,3 +1,8 @@
+local olderror = error
+error = function(...)
+	olderror(debug.traceback(...))
+end
+
 DEVMODE, DEFDIRECTORY = false, "app0:"
 local Color_new = Color.new
 local Graphics_drawImage = Graphics.drawImage
@@ -573,7 +578,7 @@ local function menu_screen()
 		if not launch then
 			down_screen (menu_now, menu_delta, menu_buttons,{})
 			down_buttons (menu_delta,LOCALIZATION.MENU.DOWN_BUTTONS,{crossbut_tex})
-			FontLib_print(718, 800 - 272*menu_delta,"PiCrest v1.11 by @creckeryop",white)
+			FontLib_print(718, 800 - 272*menu_delta,"PiCrest v1.15 by @creckeryop",white)
 		end
 		return true
 	end
@@ -684,6 +689,9 @@ local function options_screen ()
 			down_buttons (options_delta,LOCALIZATION.OPTIONS.DOWN_BUTTONS[1],{circlebut_tex, padlr_tex})
 		else
 			down_buttons (options_delta,LOCALIZATION.OPTIONS.DOWN_BUTTONS[2],{crossbut_tex, circlebut_tex})
+		end
+		if lng == 4 then
+			FontLib_print(960-34*8-8, 800 - 272*options_delta,"Japanese translation by kuragehime",white)
 		end
 	end
 end
@@ -1188,17 +1196,23 @@ local function lselection_screen()
 						if not systemLevelFolder[i].dir then
 							local rec, name,perfect = getRecord(now_path..systemLevelFolder[i].name..".pcl"),false
 							if rec < 0 then perfect = true end
+							local recDigits = false
 							if rec == 0 then
 								name = "???"
 								rec = LOCALIZATION.NO_RECORD[lng]
 								else
 								name = systemLevelFolder[i].realname
 								rec =  toDigits(rec)
+								recDigits = true
 							end
 							local clr, dt = newAlpha(white,255*number_p_delta), 680-m -40*number_p_delta
 							FontLib_printRotated(170, dt - 20, name,0, clr)
 							FontLib_printRotated(170, dt , systemLevelFolder[i].size,0, clr)
-							FontLib_printRotated(170, dt + 20, rec,0, clr,lng)
+							if recDigits then
+								FontLib_printRotated(170, dt + 20, rec,0, clr, 1)
+							else
+								FontLib_printRotated(170, dt + 20, rec,0, clr,lng)
+							end
 							if perfect then FontLib_printExtended(140, 640-m + 55, LOCALIZATION.PERFECT[lng],2,2,0, newAlpha(Color_new(255,221,44),255*number_p_delta),lng) end
 						else
 							local text = LOCALIZATION.FOLDER[lng]
@@ -1560,7 +1574,7 @@ local function drawLevel ()
 				hint_delta, hint_gravity =  0, 0
 			end
 		end
-		drawRect(480-240*hint_delta,272-50*hint_delta,480*hint_delta,100*hint_delta,Color_new(0,0,0,205))
+		drawRect(480-280*hint_delta,272-50*hint_delta,560*hint_delta,100*hint_delta,Color_new(0,0,0,205))
 		FontLib_printExtended(480+3,272-20*hint_delta,LOCALIZATION.USE_HINT[lng],3*hint_delta,3*hint_delta,0,white,lng)
 		if hint_now==0 then
 		FontLib_printExtended(480+3,272+20*hint_delta," "..LOCALIZATION.YESORNO.BUTTONS[lng][1].." ".." "..LOCALIZATION.YESORNO.BUTTONS[lng][2].." ",3*hint_delta,3*hint_delta,0,white,lng)
