@@ -2,14 +2,14 @@
 # PiCrest
 Nonogram game for PlayStation Vita<br>
 <img src="https://img.shields.io/badge/lua-v5.2.4-green.svg">
-<img src="https://img.shields.io/badge/release-v1.11-blue.svg"><br>
+<img src="https://img.shields.io/badge/release-v1.15-blue.svg"><br>
 <img src="screenshots/screenshots.gif"><br>
 ## Features
 * Level Editor with palette (R,G,B,H,S,V,A(alpha))
 * Themes Editor
 * Level Generator
 * 93 Levels
-* Multilanguage support (English, Russian, Latina(thanks to overmind98))
+* Multilanguage support (English, Russian, Latina(overmind98), Japanese ([kuragehime](https://github.com/kuragehimekurara1)))
 ## How to play
 * <kbd>DPAD</kbd> - Move
 * <kbd>Cross</kbd> - place field
@@ -23,3 +23,4 @@ To build the game open `build.bat`, it will create PiCrest.vpk file, that can be
 You can [download](https://github.com/Creckeryop/PiCrest/releases/latest) latest .vpk of PiCrest
 ## Links
 * [Lua Player Plus for Vita](https://github.com/Rinnegatamante/lpp-vita) (by [Rinnegatamante](https://github.com/Rinnegatamante/))
+* [kuragehime](https://github.com/kuragehimekurara1) - Japanese translation
